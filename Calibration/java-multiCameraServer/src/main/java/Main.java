@@ -48,6 +48,16 @@ public final class Main {
     sideLength = 2.46; //centimeters
     boardSize = new Size(8,6);
 
+    //Initialize empty variables
+    MatOfPoint2f foundCorners = new MatOfPoint2f();
+    List<Mat> allProjectedCorners = new ArrayList<Mat>();
+    MatOfPoint3f realCornersTemplate = new MatOfPoint3f();
+    List<Mat> allRealCorners = new ArrayList<Mat>();
+    Mat intrinsic = new Mat();
+    Mat distortion = new Mat();
+    List<Mat> rotation = new ArrayList<Mat>();    
+    List<Mat> translation = new ArrayList<Mat>();    
+
     /*
     Detect corners of a chessboard pattern in a series of images
     For each image, assign the 2d coordinates of the corners of the detected pattern in the image  to a matrix
@@ -85,7 +95,8 @@ public final class Main {
     starting in the top left corner, going from left to right for each row, and starting at the left each new row
     However, the matrix of 2d coordinates does not correspond to the rows/columns of the actual corners (e.g. 8x6), but is instead the total number of points by one (e.g. 48x1), so we must store the 3d points in the same way 
     So we use two for loops, the y loop keeping track of the rows and the x loop keeping track of the points within a row, and a index variable to keep track of the number of the points overall
-    */ 
+    */
+    Point3[] realCornersArray = new Point3[foundCorners.rows()]; 
     int index = 0;
     for (int y = 0; y < boardSize.height; y++){
       for (int x = 0; x < boardSize.width; x++){
@@ -117,10 +128,25 @@ public final class Main {
     list of matrices of values representing the camera's rotation in relation to the world coordinates: rotation
     list of matrices of values representing the camera's translation in relation to the world coordinates: translation
     Return value:
-    a double related to the accuracy of the calibration - smaller is more accurate, between 1 and 0 is good: calibrationOutput
+    a double related to the accuracy of the calibration - smaller is more accurate, under 1 is good: calibrationOutput
     */
     calibrationOutput = Calib3d.calibrateCamera(allRealCorners, allProjectedCorners, frameSize, intrinsic, distortion, rotation, translation);
     System.out.println("calibration output is " + calibrationOutput);
+
+    //Print the intrinsic and distortion matrices so they can be defined as constants in other programs
+    System.out.println("intrinsic matrix size is " + intrinsic.size());
+    for (int row = 0; row < intrinsic.rows(); row++){
+      for (int col = 0; col < intrinsic.cols(); col++){
+        System.out.println("Intrinsic matrix row " + row + ", column " + col + " is: " + intrinsic.get(row, col)[0]);
+      }
+    }
+
+    System.out.println("distortion matrix size is " + distortion.size());
+    for (int row = 0; row < distortion.rows(); row++){
+      for (int col = 0; col < distortion.cols(); col++){
+        System.out.println("Distortion matrix row " + row + ", column " + col + " is: " + distortion.get(row, col)[0]);
+      }
+    }
   }
 
 }
