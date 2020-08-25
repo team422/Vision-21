@@ -134,13 +134,14 @@ public final class Main {
     System.out.println("calibration output is " + calibrationOutput);
 
     //Print the intrinsic and distortion matrices so they can be defined as constants in other programs
+    //Use the same double for loop method for going through the matrices as for setting up realCornersTemplate
+    //Every data point in an OpenCV matrix is a double array, but in this case the arrays only contain one number
     System.out.println("intrinsic matrix size is " + intrinsic.size());
     for (int row = 0; row < intrinsic.rows(); row++){
       for (int col = 0; col < intrinsic.cols(); col++){
         System.out.println("Intrinsic matrix row " + row + ", column " + col + " is: " + intrinsic.get(row, col)[0]);
       }
     }
-
     System.out.println("distortion matrix size is " + distortion.size());
     for (int row = 0; row < distortion.rows(); row++){
       for (int col = 0; col < distortion.cols(); col++){
