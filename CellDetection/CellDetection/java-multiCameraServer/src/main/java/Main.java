@@ -712,8 +712,8 @@ public static class CellPipeline implements VisionPipeline {
 
           //Set the experimental networktables entries
 	  test.forceSetDouble(422);
-          x.forcSetDouble(centerX);
-          y.forcSetDouble(centerY);	  
+          x.forceSetDouble(centerX);
+          y.forceSetDouble(centerY);	  
 
           /*
           Use OpenCV's drawContours method with parameters:
