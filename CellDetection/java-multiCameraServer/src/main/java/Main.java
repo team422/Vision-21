@@ -357,6 +357,9 @@ public final class Main {
     // System.out.println(cameras.get(0).getProperty("cols") + "columns in the VideoMode");
     // System.out.println(cameras.get(0).getProperty("rows") + "rows in the VideoMode");
       
+    //Call the Calibration constructor to get the calibration parameters
+    Calibration calibration = new Calibration();
+
       VisionThread visionThread = new VisionThread(cameras.get(0),
       new CellPipeline(), pipeline -> {
         // do something with pipeline results
