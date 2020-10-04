@@ -31,17 +31,7 @@ import edu.wpi.first.networktables.*;
 import edu.wpi.first.vision.VisionPipeline;
 import edu.wpi.first.vision.VisionThread;
 
-import org.opencv.core.Mat;
-
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.HashMap;
-
+import org.opencv.calib3d.Calib3d;
 import org.opencv.core.*;
 import org.opencv.core.Core.*;
 import org.opencv.imgcodecs.Imgcodecs;
@@ -337,7 +327,6 @@ public final class Main {
     NetworkTableEntry testEntry = table.getEntry("test");
     NetworkTableEntry correctionEntry = table.getEntry("correction");
 
-
     // start cameras
     for (CameraConfig config : cameraConfigs) {
       cameras.add(startCamera(config));
@@ -350,58 +339,75 @@ public final class Main {
     // start image processing on camera 0 if present
     if (cameras.size() >= 1) {
       
-    //Add a new camera stream for displaying the contour on
-    CameraServer inst = CameraServer.getInstance();
-    CvSource drawnVideo = inst.putVideo("visionStream", 160, 120);
-    //These prints were used to get the frame size parameters used in putVideo() so that the new video would be the same size as the camera stream going into the pipeline:
-    // System.out.println(cameras.get(0).getProperty("cols") + "columns in the VideoMode");
-    // System.out.println(cameras.get(0).getProperty("rows") + "rows in the VideoMode");
+      //Add a new camera stream for displaying the contour on
+      CameraServer inst = CameraServer.getInstance();
+      CvSource drawnVideo = inst.putVideo("visionStream", 160, 120); //160 and 120 are the frame's width and height found in the FRCVision web dashboard under Vision Settings
       
-    //Call the Calibration constructor to get the calibration parameters
-    Calibration calibration = new Calibration();
+      //Change the newCalibration variable in Calibration to true to run a new calibration. Otherwise, the recorded calibration parameters will be used
+      if (Calibration.newCalibration){
+        System.out.println("starting new calibration");
+        Calibration.calibrate();
+      }
+      else {
+        System.out.println("using recorded calibration");
+        Calibration.setParameters();
+      }
 
       VisionThread visionThread = new VisionThread(cameras.get(0),
-      new CellPipeline(), pipeline -> {
-        // do something with pipeline results
-  
-	      System.out.println("Found " + CellPipeline.findContoursOutput.size() + " contours.");
+      new GoalPipeline(), pipeline -> {
+
+        Mat drawnExampleImg = Imgcodecs.imread("exampleGoalImages/BlueGoal-060in-Center.jpg");
+
+	      System.out.println("Found " + GoalPipeline.convexHullsOutput.size() + " contours.");
         
-        if(CellPipeline.findContoursOutput.size()>0){
-      
+        if(GoalPipeline.convexHullsOutput.size()>0){
+
           //Identify the largest contour by comparing each contour to the largest so far, with "largest so far" starting at -1
           double maxSize = -1;
-          int maxSizeIndex = -1;
-            for(int i = 0; i < CellPipeline.findContoursOutput.size(); i++ ) {
-              if (Imgproc.contourArea(CellPipeline.findContoursOutput.get(i))> maxSize) {
-                maxSize = Imgproc.contourArea(CellPipeline.findContoursOutput.get(i));
-		            maxSizeIndex = i;	  
+          MatOfPoint largestContour = new MatOfPoint();
+            for(int i = 0; i < GoalPipeline.convexHullsOutput.size(); i++ ) {
+              if (Imgproc.contourArea(GoalPipeline.convexHullsOutput.get(i))> maxSize) {
+                maxSize = Imgproc.contourArea(GoalPipeline.convexHullsOutput.get(i));
+		            largestContour = GoalPipeline.convexHullsOutput.get(i);	  
 	            }
             }
+          
+          //Convert the largest contour from MatOfPoint to MatOfPoint2f in order to approximate it to a polygon
+          MatOfPoint2f approximationInput = new MatOfPoint2f();
+          largestContour.convertTo(approximationInput, CvType.CV_32F);
+          //Approximate to a set of polygon corners
+          MatOfPoint2f approximatedPolygonCorners = new MatOfPoint2f();
+          Imgproc.approxPolyDP(approximationInput, approximatedPolygonCorners, Imgproc.arcLength(approximationInput, true)/70, true);
+          System.out.println("This many corners in the polygon: " + approximatedPolygonCorners.size().height);
+          //Draw the polygon corners by creating a new Point based on each Point2f
+          for (int i = 0; i < approximatedPolygonCorners.size().height; i++){
+              Imgproc.circle(drawnExampleImg, new Point(approximatedPolygonCorners.get(i, 0)[0],approximatedPolygonCorners.get(i, 0)[1]), 5, new Scalar(0,0,(i+1)*60), -1);
+          }
 
-          //Identify the center X coordinate of a rectangle drawn around the largest contour
-          Rect boundRect = Imgproc.boundingRect(CellPipeline.findContoursOutput.get(maxSizeIndex));
-          double centerX = boundRect.x + (boundRect.width / 2);
+          //This is code for powercell tracking commented out in order to work on just goal tracking for the moment
+          // //Identify the center X coordinate of a rectangle drawn around the largest contour
+          // Rect boundRect = Imgproc.boundingRect(largestContour);
+          // double centerX = boundRect.x + (boundRect.width / 2);
 
-          //Find a correction value between -1 and 1 based on the center of the rectangle and the center of the frame
-          double correction = (centerX - (CellPipeline.drawnFrame.width()/2)) * (2/CellPipeline.drawnFrame.width());
+          // //Find a correction value between -1 and 1 based on the center of the rectangle and the center of the frame
+          // double correction = (centerX - (drawnFrame.width()/2)) * (2/drawnFrame.width());
 
-          //Set the  networktables entries
-          testEntry.forceSetDouble(422);  
-          correctionEntry.forceSetDouble(correction);
+          // //Set the  networktables entries
+          // testEntry.forceSetDouble(422);  
+          // correctionEntry.forceSetDouble(correction);
 
-          /*
-          Use OpenCV's drawContours method with parameters:
-          An image in the Mat format to be drawn on: CellPipeline.drawnFrame, the copy of the pipeline input
-          The set of contours where the contour to draw is located: CellPipeline.findContoursOutput
-          The index of the specific contour from the set to draw: maxSizeIndex, the index of the largest contour
-          A scalar with a BGR color to draw in: (255,255,0) or bluish green
-          A thickness to draw in: 2
-          A line format: 8, which is recommended, so go with that
-          */
-          Imgproc.drawContours(CellPipeline.drawnFrame, CellPipeline.findContoursOutput, maxSizeIndex, new Scalar(255,255,0), 2, 8);
-
-          //Now that contours have been drawn on drawnFrame, add it as a frame to the video stream drawnVideo
-          drawnVideo.putFrame(CellPipeline.drawnFrame);
+          // /*
+          // Use OpenCV's drawContours method with parameters:
+          // An image in the Mat format to be drawn on: drawnFrame, the copy of the pipeline input
+          // The set of contours where the contour to draw is located: GoalPipeline.convexHullsOutput
+          // The index of the specific contour from the set to draw: maxSizeIndex, the index of the largest contour
+          // A scalar with a BGR color to draw in: (255,255,0) or bluish green
+          // A thickness to draw in: 2
+          // A line format: 8, which is recommended, so go with that
+          // */
+          // Imgproc.drawContours(drawnFrame, GoalPipeline.convexHullsOutput, maxSizeIndex, new Scalar(255,255,0), 2, 4);
+          
+          drawnVideo.putFrame(drawnExampleImg);
         }
       });
       visionThread.start();
