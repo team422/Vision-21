@@ -353,37 +353,69 @@ public final class Main {
         Calibration.setParameters();
       }
 
-      Mat ExampleImg = Imgcodecs.imread("exampleGoalImages/BlueGoal-156in-Left.jpg");
-
       VisionThread visionThread = new VisionThread(cameras.get(0),
       new GoalPipeline(), pipeline -> {
-
-        Mat drawnExampleImg = ExampleImg;
 
 	      System.out.println("Found " + GoalPipeline.convexHullsOutput.size() + " contours.");
         
         if(GoalPipeline.convexHullsOutput.size()>0){
-
           //Identify the largest contour by comparing each contour to the largest so far, with "largest so far" starting at -1
           double maxSize = -1;
           MatOfPoint largestContour = new MatOfPoint();
-            for(int i = 0; i < GoalPipeline.convexHullsOutput.size(); i++ ) {
-              if (Imgproc.contourArea(GoalPipeline.convexHullsOutput.get(i))> maxSize) {
-                maxSize = Imgproc.contourArea(GoalPipeline.convexHullsOutput.get(i));
-		            largestContour = GoalPipeline.convexHullsOutput.get(i);	  
-	            }
+          for(int i = 0; i < GoalPipeline.convexHullsOutput.size(); i++ ) {
+            if (Imgproc.contourArea(GoalPipeline.convexHullsOutput.get(i))> maxSize) {
+              maxSize = Imgproc.contourArea(GoalPipeline.convexHullsOutput.get(i));
+              largestContour = GoalPipeline.convexHullsOutput.get(i);	  
             }
+          }
           
           //Convert the largest contour from MatOfPoint to MatOfPoint2f in order to approximate it to a polygon
           MatOfPoint2f approximationInput = new MatOfPoint2f();
           largestContour.convertTo(approximationInput, CvType.CV_32F);
           //Approximate to a set of polygon corners
-          MatOfPoint2f approximatedPolygonCorners = new MatOfPoint2f();
-          Imgproc.approxPolyDP(approximationInput, approximatedPolygonCorners, Imgproc.arcLength(approximationInput, true)/65, true);
-          System.out.println("This many corners in the polygon: " + approximatedPolygonCorners.size().height);
+          MatOfPoint2f polygonCorners = new MatOfPoint2f();
+          Imgproc.approxPolyDP(approximationInput, polygonCorners, Imgproc.arcLength(approximationInput, true)/65, true);
+          
+          MatOfPoint2f detectedGoalPoints = new MatOfPoint2f();
+          polygonCorners.copyTo(detectedGoalPoints);
+          //Reorder the points so that they are always go top left, bottom left, bottom right, top right
+          if(polygonCorners.size().height == 4.0){
+            //Find average coordinates to compare each point to
+            double avgX = (polygonCorners.get(0,0)[0] + polygonCorners.get(1,0)[0] + polygonCorners.get(2,0)[0] + polygonCorners.get(3,0)[0])/4;
+            double avgY = (polygonCorners.get(0,0)[1] + polygonCorners.get(1,0)[1] + polygonCorners.get(2,0)[1] + polygonCorners.get(3,0)[1])/4;
+
+            for (int i = 0; i < 4; i++) {
+              if (polygonCorners.get(i,0)[0] <= avgX) {
+                if (polygonCorners.get(i,0)[1] <= avgY) {
+                  detectedGoalPoints.put(0, 0, polygonCorners.get(i, 0));
+                }
+                else if (polygonCorners.get(i,0)[1] >= avgY) {
+                  detectedGoalPoints.put(1, 0, polygonCorners.get(i, 0));
+                }
+              }
+              else if (polygonCorners.get(i, 0)[0] >= avgX) {
+                if (polygonCorners.get(i,0)[1] >= avgY) {
+                  detectedGoalPoints.put(2, 0, polygonCorners.get(i, 0));
+                }
+                else if (polygonCorners.get(i,0)[1] <= avgY) {
+                  detectedGoalPoints.put(3, 0, polygonCorners.get(i, 0));
+                }
+              }
+              else {
+                System.out.println("something went wrong while ordering points");
+              }
+           }
+          }
+          else {
+            System.out.println("found the wrong number of points");
+          }
+
           //Draw the polygon corners by creating a new Point based on each Point2f
-          for (int i = 0; i < approximatedPolygonCorners.size().height; i++){
-              Imgproc.circle(drawnExampleImg, new Point(approximatedPolygonCorners.get(i, 0)[0],approximatedPolygonCorners.get(i, 0)[1]), 5, new Scalar((i+1)*60,255,(i+1)*60), -1);
+          for (int i = 0; i < detectedGoalPoints.size().height; i++){
+            System.out.println("point " + i + " is " + "(" + detectedGoalPoints.get(i, 0)[0] + "," + detectedGoalPoints.get(i, 0)[1] + ")");
+            Imgproc.circle(GoalPipeline.drawnExampleGoalImg, new Point(detectedGoalPoints.get(i, 0)[0],detectedGoalPoints.get(i, 0)[1]), 5, new Scalar((i+1)*63,(i+1)*63,(i+1)*63), -1);
+            Imgproc.circle(GoalPipeline.drawnExampleGoalImg, new Point(detectedGoalPoints.get(i, 0)[0],detectedGoalPoints.get(i, 0)[1]), 5, new Scalar(0,0,255), 1);
+
           }
 
           //This is code for powercell tracking commented out in order to work on just goal tracking for the moment
@@ -409,7 +441,7 @@ public final class Main {
           // */
           // Imgproc.drawContours(drawnFrame, GoalPipeline.convexHullsOutput, maxSizeIndex, new Scalar(255,255,0), 2, 4);
           
-          drawnVideo.putFrame(drawnExampleImg);
+          drawnVideo.putFrame(GoalPipeline.drawnExampleGoalImg);
         }
       });
       visionThread.start();

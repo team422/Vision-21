@@ -29,7 +29,8 @@ Later in the code, the pipeline output can be drawn on this unmodified copy and 
 */
 public class GoalPipeline implements VisionPipeline {
 
-	public static Mat exampleGoalImg = Imgcodecs.imread("exampleGoalImages/BlueGoal-156in-Left.jpg");
+	public static Mat exampleGoalImg = Imgcodecs.imread("exampleGoalImages/BlueGoal-060in-Center.jpg");
+	public static Mat drawnExampleGoalImg = new Mat();
 
 	//Outputs
 	private Mat blurOutput = new Mat();
@@ -48,6 +49,7 @@ public class GoalPipeline implements VisionPipeline {
 	@Override	public void process(Mat source0) {
 		
 		drawnFrame = source0;
+		exampleGoalImg.copyTo(drawnExampleGoalImg);
 
 		// Step Blur0:
 		Mat blurInput = exampleGoalImg;
