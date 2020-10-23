@@ -48,7 +48,7 @@ public class GoalPipeline implements VisionPipeline {
 	 */
 	@Override	public void process(Mat source0) {
 		
-		drawnFrame = source0;
+		source0.copyTo(drawnFrame);;
 		exampleGoalImg.copyTo(drawnExampleGoalImg);
 
 		// Step Blur0:

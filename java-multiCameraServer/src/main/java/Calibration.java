@@ -2,17 +2,17 @@ import java.util.ArrayList;
 import java.util.List;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint2f;
-import org.opencv.core.MatOfPoint3f;
-import org.opencv.core.Point3;
+
 import org.opencv.core.Size;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.calib3d.*;
 import java.io.File;
 
 public class Calibration {
-    public static boolean newCalibration = false; //set to true for a new calibration if there are new pictures or measurements
-    public static Mat intrinsic = new Mat();
-    public static Mat distortion = new Mat();    
+    public static boolean newCalibration = true; //set to true for a new calibration if there are new pictures or measurements
+    //Use 6 in the Mat constructor to match the type output by calibrateCamera
+    public static Mat intrinsic = new Mat(new Size(3,3), 6);
+    public static Mat distortion = new Mat(new Size(1,5), 6);    
 
     public static void setParameters(){
         //the camera's intrinsic calibration parameters printed and copied from the calibration program
@@ -42,7 +42,6 @@ public class Calibration {
         //empty variables
         MatOfPoint2f foundCorners = new MatOfPoint2f();
         List<Mat> allProjectedCorners = new ArrayList<Mat>();
-        MatOfPoint3f realCornersTemplate = new MatOfPoint3f();
         List<Mat> allRealCorners = new ArrayList<Mat>();
         List<Mat> rotation = new ArrayList<Mat>();    
         List<Mat> translation = new ArrayList<Mat>();
@@ -83,27 +82,23 @@ public class Calibration {
         Both sets of points must be in the same order
         The findChessboardCorners method normally orders the points the same way lines are read: 
         starting in the top left corner, going from left to right for each row, and starting at the left each new row
-        However, the matrix of 2d coordinates does not correspond to the rows/columns of the actual corners (e.g. 8x6), but is instead the total number of points by one (e.g. 48x1), so we must store the 3d points in the same way 
+        However, the matrix of 2d coordinates does not correspond to the rows/columns of the actual corners (e.g. 8x6), but instead has a row for each corner (e.g. 1x48), so we must store the 3d points in the same way 
         So we use two for loops, the y loop keeping track of the rows and the x loop keeping track of the points within a row, and a index variable to keep track of the number of the points overall
         */
-        Point3[] realCornersArray = new Point3[foundCorners.rows()]; 
+        Mat realCornersTemplate = new Mat(new Size(foundCorners.width(), foundCorners.height()), 21);
         int index = 0;
         for (int y = 0; y < boardSize.height; y++){
             for (int x = 0; x < boardSize.width; x++){
-                //Create a point and add it to an array of points
                 //The origin of the real world coordinate system can be arbitrarily picked as one of the corners and the x and y coordinates of all the corners set by measuring one chessboard square
                 //The z coordinate can always be 0 because the pattern should be flat when the pictures are taken, so all the points are in the same plane
-                Point3 rPoint = new Point3(x*sideLength, y*sideLength, 0);
-                realCornersArray[index] = rPoint;
+                realCornersTemplate.put(index, 0, new double[]{x*sideLength, y*sideLength, 0});
                 index++;
             }
         }
-        //Fill the matrix of 3d points realCornersTemplate with the points in the array
-        realCornersTemplate.fromArray(realCornersArray);
         //Add as many copies of realCornersTemplate to the list of matrices allRealCorners as there are matrices of the chessboard corners in allProjectedCorners
         //The same template can be used every time because the real world points did not change while the pictures were taken
-        for (int j = 0; j < allProjectedCorners.size(); j++){
-            allRealCorners.add(j, realCornersTemplate);
+        for (int i = 0; i < allProjectedCorners.size(); i++){
+            allRealCorners.add(i, realCornersTemplate);
         }
 
         /*
@@ -138,5 +133,6 @@ public class Calibration {
                 System.out.println("Distortion matrix row " + row + ", column " + col + " is: " + distortion.get(row, col)[0]);
             }
         }
+        System.out.println("realCornersTemplate type is " + realCornersTemplate.type());
     }  
 }

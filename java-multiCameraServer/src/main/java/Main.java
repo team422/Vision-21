@@ -378,6 +378,7 @@ public final class Main {
           
           MatOfPoint2f detectedGoalPoints = new MatOfPoint2f();
           polygonCorners.copyTo(detectedGoalPoints);
+
           //Reorder the points so that they are always go top left, bottom left, bottom right, top right
           if(polygonCorners.size().height == 4.0){
             //Find average coordinates to compare each point to
@@ -386,18 +387,18 @@ public final class Main {
 
             for (int i = 0; i < 4; i++) {
               if (polygonCorners.get(i,0)[0] <= avgX) {
-                if (polygonCorners.get(i,0)[1] <= avgY) {
+                if (polygonCorners.get(i,0)[1] <= avgY) { //top left
                   detectedGoalPoints.put(0, 0, polygonCorners.get(i, 0));
                 }
-                else if (polygonCorners.get(i,0)[1] >= avgY) {
+                else if (polygonCorners.get(i,0)[1] >= avgY) { //bottom left
                   detectedGoalPoints.put(1, 0, polygonCorners.get(i, 0));
                 }
               }
               else if (polygonCorners.get(i, 0)[0] >= avgX) {
-                if (polygonCorners.get(i,0)[1] >= avgY) {
+                if (polygonCorners.get(i,0)[1] >= avgY) { //bottom right
                   detectedGoalPoints.put(2, 0, polygonCorners.get(i, 0));
                 }
-                else if (polygonCorners.get(i,0)[1] <= avgY) {
+                else if (polygonCorners.get(i,0)[1] <= avgY) { //top right
                   detectedGoalPoints.put(3, 0, polygonCorners.get(i, 0));
                 }
               }
@@ -412,9 +413,8 @@ public final class Main {
 
           //Draw the polygon corners by creating a new Point based on each Point2f
           for (int i = 0; i < detectedGoalPoints.size().height; i++){
-            System.out.println("point " + i + " is " + "(" + detectedGoalPoints.get(i, 0)[0] + "," + detectedGoalPoints.get(i, 0)[1] + ")");
             Imgproc.circle(GoalPipeline.drawnExampleGoalImg, new Point(detectedGoalPoints.get(i, 0)[0],detectedGoalPoints.get(i, 0)[1]), 5, new Scalar((i+1)*63,(i+1)*63,(i+1)*63), -1);
-            Imgproc.circle(GoalPipeline.drawnExampleGoalImg, new Point(detectedGoalPoints.get(i, 0)[0],detectedGoalPoints.get(i, 0)[1]), 5, new Scalar(0,0,255), 1);
+            Imgproc.circle(GoalPipeline.drawnExampleGoalImg, new Point(detectedGoalPoints.get(i, 0)[0],detectedGoalPoints.get(i, 0)[1]), 5, new Scalar(0,0,255), 3);
 
           }
 

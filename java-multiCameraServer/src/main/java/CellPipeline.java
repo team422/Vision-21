@@ -40,7 +40,7 @@ public class CellPipeline implements VisionPipeline {
 	 */
 	@Override	public void process(Mat source0) {
 		
-		drawnFrame = source0;
+		source0.copyTo(drawnFrame);
 
 		// Step Blur0:
 		Mat blurInput = source0;
