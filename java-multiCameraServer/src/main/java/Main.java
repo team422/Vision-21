@@ -11,6 +11,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.swing.event.CellEditorListener;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -30,6 +32,7 @@ import edu.wpi.first.networktables.*;
 
 import edu.wpi.first.vision.VisionPipeline;
 import edu.wpi.first.vision.VisionThread;
+import edu.wpi.first.wpilibj.Relay.Value;
 
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.*;
@@ -105,6 +108,9 @@ public final class Main {
   public static List<SwitchedCameraConfig> switchedCameraConfigs = new ArrayList<>();
   public static List<VideoSource> cameras = new ArrayList<>();
   
+  //booleans for running vision threads
+  public static boolean runGoalThread = false;
+  public static boolean runCellThread = false;
 
 
   private Main() {
@@ -324,6 +330,8 @@ public final class Main {
 
     //Create/call the table visionTable and assign its entries to NetworkTableEntry variables
     NetworkTable table = ntinst.getTable("visionTable");
+    NetworkTableEntry goalRunnerEntry = table.getEntry("runGoalVision");
+    NetworkTableEntry cellRunnerEntry = table.getEntry("runCellVision");
     NetworkTableEntry testEntry = table.getEntry("test");
     NetworkTableEntry correctionEntry = table.getEntry("correction");
 
@@ -341,7 +349,8 @@ public final class Main {
       
       //Add a new camera stream for displaying the contour on
       CameraServer inst = CameraServer.getInstance();
-      CvSource drawnVideo = inst.putVideo("visionStream", 160, 120); //160 and 120 are the frame's width and height found in the FRCVision web dashboard under Vision Settings
+      CvSource goalDrawnVideo = inst.putVideo("Goal Vision Stream", 160, 120); //160 and 120 are the frame's width and height found in the FRCVision web dashboard under Vision Settings
+      CvSource cellDrawnVideo = inst.putVideo("Powercell Vision Stream", 160, 120);
       
       //Change the newCalibration variable in Calibration to true to run a new calibration. Otherwise, the recorded calibration parameters will be used
       if (Calibration.newCalibration){
@@ -353,100 +362,131 @@ public final class Main {
         Calibration.setParameters();
       }
 
-      VisionThread visionThread = new VisionThread(cameras.get(0),
+      //create listeners that will determine whether to run thread code
+      goalRunnerEntry.addListener(event -> {
+        runGoalThread = goalRunnerEntry.getBoolean(false);
+      }, EntryListenerFlags.kNew | EntryListenerFlags.kUpdate);
+
+      VisionThread goalVisionThread = new VisionThread(cameras.get(0),
       new GoalPipeline(), pipeline -> {
-
-	      System.out.println("Found " + GoalPipeline.convexHullsOutput.size() + " contours.");
-        
-        if(GoalPipeline.convexHullsOutput.size()>0){
-          //Identify the largest contour by comparing each contour to the largest so far, with "largest so far" starting at -1
-          double maxSize = -1;
-          MatOfPoint largestContour = new MatOfPoint();
-          for(int i = 0; i < GoalPipeline.convexHullsOutput.size(); i++ ) {
-            if (Imgproc.contourArea(GoalPipeline.convexHullsOutput.get(i))> maxSize) {
-              maxSize = Imgproc.contourArea(GoalPipeline.convexHullsOutput.get(i));
-              largestContour = GoalPipeline.convexHullsOutput.get(i);	  
+        if (runGoalThread) {
+          System.out.println("GoalPipeline found " + GoalPipeline.convexHullsOutput.size() + " contours.");
+          
+          if(GoalPipeline.convexHullsOutput.size()>0){
+            //Identify the largest contour by comparing each contour to the largest so far, with "largest so far" starting at -1
+            double maxSize = -1;
+            int maxSizeIndex = -1;
+            for(int i = 0; i < GoalPipeline.convexHullsOutput.size(); i++ ) {
+              if (Imgproc.contourArea(GoalPipeline.convexHullsOutput.get(i))> maxSize) {
+                maxSize = Imgproc.contourArea(GoalPipeline.convexHullsOutput.get(i));
+                maxSizeIndex = i;
+              }
             }
-          }
-          
-          //Convert the largest contour from MatOfPoint to MatOfPoint2f in order to approximate it to a polygon
-          MatOfPoint2f approximationInput = new MatOfPoint2f();
-          largestContour.convertTo(approximationInput, CvType.CV_32F);
-          //Approximate to a set of polygon corners
-          MatOfPoint2f polygonCorners = new MatOfPoint2f();
-          Imgproc.approxPolyDP(approximationInput, polygonCorners, Imgproc.arcLength(approximationInput, true)/65, true);
-          
-          MatOfPoint2f detectedGoalPoints = new MatOfPoint2f();
-          polygonCorners.copyTo(detectedGoalPoints);
+            MatOfPoint largestContour = new MatOfPoint();
+            GoalPipeline.convexHullsOutput.get(maxSizeIndex).copyTo(largestContour);
 
-          //Reorder the points so that they are always go top left, bottom left, bottom right, top right
-          if(polygonCorners.size().height == 4.0){
-            //Find average coordinates to compare each point to
-            double avgX = (polygonCorners.get(0,0)[0] + polygonCorners.get(1,0)[0] + polygonCorners.get(2,0)[0] + polygonCorners.get(3,0)[0])/4;
-            double avgY = (polygonCorners.get(0,0)[1] + polygonCorners.get(1,0)[1] + polygonCorners.get(2,0)[1] + polygonCorners.get(3,0)[1])/4;
+            //Approximate the convex hulls to a polygon with less vertices
+            MatOfPoint2f approximationInput = new MatOfPoint2f();
+            largestContour.convertTo(approximationInput, CvType.CV_32FC2);
+            MatOfPoint2f polygonCorners = new MatOfPoint2f();
+            Imgproc.approxPolyDP(approximationInput, polygonCorners, Imgproc.arcLength(approximationInput, true)/65, true);
+            
+            MatOfPoint2f reorderedCorners = new MatOfPoint2f();
+            polygonCorners.copyTo(reorderedCorners);
 
-            for (int i = 0; i < 4; i++) {
-              if (polygonCorners.get(i,0)[0] <= avgX) {
-                if (polygonCorners.get(i,0)[1] <= avgY) { //top left
-                  detectedGoalPoints.put(0, 0, polygonCorners.get(i, 0));
+            //Reorder the points so that they are always go top left, bottom left, bottom right, top right
+            if(polygonCorners.size().height == 4.0){
+              //Find average coordinates to compare each point to
+              double avgX = (polygonCorners.get(0,0)[0] + polygonCorners.get(1,0)[0] + polygonCorners.get(2,0)[0] + polygonCorners.get(3,0)[0])/4;
+              double avgY = (polygonCorners.get(0,0)[1] + polygonCorners.get(1,0)[1] + polygonCorners.get(2,0)[1] + polygonCorners.get(3,0)[1])/4;
+
+              //compare each point to the average coordinate and assign it a position in reorderedCorners depending on how it compares.
+              for (int i = 0; i < 4; i++) {
+                if (polygonCorners.get(i,0)[0] <= avgX && polygonCorners.get(i,0)[1] <= avgY) { //top left
+                  reorderedCorners.put(0, 0, polygonCorners.get(i, 0));
                 }
-                else if (polygonCorners.get(i,0)[1] >= avgY) { //bottom left
-                  detectedGoalPoints.put(1, 0, polygonCorners.get(i, 0));
+                else if (polygonCorners.get(i,0)[0] <= avgX && polygonCorners.get(i,0)[1] >= avgY) { //bottom left
+                    reorderedCorners.put(1, 0, polygonCorners.get(i, 0));
                 }
-              }
-              else if (polygonCorners.get(i, 0)[0] >= avgX) {
-                if (polygonCorners.get(i,0)[1] >= avgY) { //bottom right
-                  detectedGoalPoints.put(2, 0, polygonCorners.get(i, 0));
+                else if (polygonCorners.get(i, 0)[0] >= avgX && polygonCorners.get(i,0)[1] >= avgY) { //bottom right
+                  reorderedCorners.put(2, 0, polygonCorners.get(i, 0));
                 }
-                else if (polygonCorners.get(i,0)[1] <= avgY) { //top right
-                  detectedGoalPoints.put(3, 0, polygonCorners.get(i, 0));
+                else if (polygonCorners.get(i, 0)[0] >= avgX && polygonCorners.get(i,0)[1] <= avgY) { //top right
+                  reorderedCorners.put(3, 0, polygonCorners.get(i, 0));
                 }
-              }
-              else {
-                System.out.println("something went wrong while ordering points");
-              }
-           }
+                else {
+                  System.out.println("something went wrong while ordering points");
+                }
+            }
+
+            }
+            else {
+              System.out.println("found the wrong number of points");
+            }
+
+            //Draw the polygon corners 
+            for (int i = 0; i < reorderedCorners.size().height; i++){
+              Imgproc.circle(GoalPipeline.drawnExampleGoalImg, new Point(reorderedCorners.get(i, 0)[0],reorderedCorners.get(i, 0)[1]), 5, new Scalar((i+1)*63,(i+1)*63,(i+1)*63), -1);
+              Imgproc.circle(GoalPipeline.drawnExampleGoalImg, new Point(reorderedCorners.get(i, 0)[0],reorderedCorners.get(i, 0)[1]), 5, new Scalar(0,0,255), 2);
+            }
+            
+            goalDrawnVideo.putFrame(GoalPipeline.drawnExampleGoalImg);
           }
-          else {
-            System.out.println("found the wrong number of points");
-          }
-
-          //Draw the polygon corners by creating a new Point based on each Point2f
-          for (int i = 0; i < detectedGoalPoints.size().height; i++){
-            Imgproc.circle(GoalPipeline.drawnExampleGoalImg, new Point(detectedGoalPoints.get(i, 0)[0],detectedGoalPoints.get(i, 0)[1]), 5, new Scalar((i+1)*63,(i+1)*63,(i+1)*63), -1);
-            Imgproc.circle(GoalPipeline.drawnExampleGoalImg, new Point(detectedGoalPoints.get(i, 0)[0],detectedGoalPoints.get(i, 0)[1]), 5, new Scalar(0,0,255), 3);
-
-          }
-
-          //This is code for powercell tracking commented out in order to work on just goal tracking for the moment
-          // //Identify the center X coordinate of a rectangle drawn around the largest contour
-          // Rect boundRect = Imgproc.boundingRect(largestContour);
-          // double centerX = boundRect.x + (boundRect.width / 2);
-
-          // //Find a correction value between -1 and 1 based on the center of the rectangle and the center of the frame
-          // double correction = (centerX - (drawnFrame.width()/2)) * (2/drawnFrame.width());
-
-          // //Set the  networktables entries
-          // testEntry.forceSetDouble(422);  
-          // correctionEntry.forceSetDouble(correction);
-
-          // /*
-          // Use OpenCV's drawContours method with parameters:
-          // An image in the Mat format to be drawn on: drawnFrame, the copy of the pipeline input
-          // The set of contours where the contour to draw is located: GoalPipeline.convexHullsOutput
-          // The index of the specific contour from the set to draw: maxSizeIndex, the index of the largest contour
-          // A scalar with a BGR color to draw in: (255,255,0) or bluish green
-          // A thickness to draw in: 2
-          // A line format: 8, which is recommended, so go with that
-          // */
-          // Imgproc.drawContours(drawnFrame, GoalPipeline.convexHullsOutput, maxSizeIndex, new Scalar(255,255,0), 2, 4);
-          
-          drawnVideo.putFrame(GoalPipeline.drawnExampleGoalImg);
         }
       });
-      visionThread.start();
-    }
 
+      //create listeners that will determine whether to run thread code
+      cellRunnerEntry.addListener(event -> {
+        runCellThread = cellRunnerEntry.getBoolean(false);
+      }, EntryListenerFlags.kNew | EntryListenerFlags.kUpdate);
+
+      VisionThread cellVisionThread = new VisionThread(cameras.get(0),
+      new CellPipeline(), pipeline -> {
+        if (runCellThread) {
+          System.out.println("CellPipeline found " + CellPipeline.findContoursOutput.size() + " contours.");
+          
+          if(CellPipeline.findContoursOutput.size()>0){
+            //Identify the largest contour by comparing each contour to the largest so far, with "largest so far" starting at -1
+            double maxSize = -1;
+            int maxSizeIndex = -1;
+            for(int i = 0; i < CellPipeline.findContoursOutput.size(); i++ ) {
+              if (Imgproc.contourArea(CellPipeline.findContoursOutput.get(i))> maxSize) {
+                maxSize = Imgproc.contourArea(CellPipeline.findContoursOutput.get(i));
+                maxSizeIndex = i;
+              }
+            }
+            MatOfPoint largestContour = new MatOfPoint();
+            CellPipeline.findContoursOutput.get(maxSizeIndex).copyTo(largestContour);
+
+            //Identify the center X coordinate of a rectangle drawn around the largest contour
+            Rect boundRect = Imgproc.boundingRect(largestContour);
+            double centerX = boundRect.x + (boundRect.width / 2);
+
+            //Find a correction value between -1 and 1 based on the center of the rectangle and the center of the frame
+            double correction = (centerX - (CellPipeline.drawnFrame.width()/2)) * (2/CellPipeline.drawnFrame.width());
+
+            correctionEntry.forceSetDouble(correction);
+
+            /*
+            Use OpenCV's drawContours method with parameters:
+            An image in the Mat format to be drawn on: drawnFrame, the copy of the pipeline input
+            The set of contours where the contour to draw is located: GoalPipeline.convexHullsOutput
+            The index of the specific contour from the set to draw: maxSizeIndex, the index of the largest contour
+            A scalar with a BGR color to draw in: (255,255,0) or bluish green
+            A thickness to draw in: 2
+            A line format: 8, which is recommended, so go with that
+            */
+            Imgproc.drawContours(CellPipeline.drawnFrame, CellPipeline.findContoursOutput, maxSizeIndex, new Scalar(255,255,0), 2, 4);
+            
+            cellDrawnVideo.putFrame(CellPipeline.drawnFrame);
+          }
+        }
+      });
+
+      goalVisionThread.start();
+      cellVisionThread.start();
+      
+    }
     // loop forever
     for (;;) {
       try {

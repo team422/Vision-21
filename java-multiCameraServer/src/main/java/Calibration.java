@@ -1,5 +1,7 @@
 import java.util.ArrayList;
 import java.util.List;
+
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint2f;
 
@@ -9,10 +11,10 @@ import org.opencv.calib3d.*;
 import java.io.File;
 
 public class Calibration {
-    public static boolean newCalibration = true; //set to true for a new calibration if there are new pictures or measurements
-    //Use 6 in the Mat constructor to match the type output by calibrateCamera
-    public static Mat intrinsic = new Mat(new Size(3,3), 6);
-    public static Mat distortion = new Mat(new Size(1,5), 6);    
+    public static boolean newCalibration = false; //set to true for a new calibration if there are new pictures or measurements
+    //Use CvType.CV_64FC1 in the Mat constructor to match the type output by calibrateCamera
+    public static Mat intrinsic = new Mat(new Size(3,3), CvType.CV_64FC1);
+    public static Mat distortion = new Mat(new Size(1,5), CvType.CV_64FC1);    
 
     public static void setParameters(){
         //the camera's intrinsic calibration parameters printed and copied from the calibration program
@@ -85,7 +87,7 @@ public class Calibration {
         However, the matrix of 2d coordinates does not correspond to the rows/columns of the actual corners (e.g. 8x6), but instead has a row for each corner (e.g. 1x48), so we must store the 3d points in the same way 
         So we use two for loops, the y loop keeping track of the rows and the x loop keeping track of the points within a row, and a index variable to keep track of the number of the points overall
         */
-        Mat realCornersTemplate = new Mat(new Size(foundCorners.width(), foundCorners.height()), 21);
+        Mat realCornersTemplate = new Mat(new Size(foundCorners.width(), foundCorners.height()), CvType.CV_32FC3);
         int index = 0;
         for (int y = 0; y < boardSize.height; y++){
             for (int x = 0; x < boardSize.width; x++){
