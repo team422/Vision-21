@@ -10,6 +10,8 @@ import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.calib3d.*;
 import java.io.File;
 
+import java.lang.Math;
+
 public class Calibration {
     public static boolean newCalibration = false; //set to true for a new calibration if there are new pictures or measurements
     //Use CvType.CV_64FC1 in the Mat constructor to match the type output by calibrateCamera
@@ -136,5 +138,9 @@ public class Calibration {
             }
         }
         System.out.println("realCornersTemplate type is " + realCornersTemplate.type());
-    }  
+    } 
+
+    public double convertAngle (Mat r) {
+        return Math.atan2(-r.get(2, 0)[0], r.get(0, 0)[0]);
+    }
 }
