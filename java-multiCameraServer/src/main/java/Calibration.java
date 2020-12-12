@@ -64,7 +64,7 @@ public class Calibration {
         //Look for chessboard corner points in every file in the folder
         for (File i : files){
             //Get the .jpg file as the Mat sourceImage
-            //OpenCV's Mat format is a matrix, in this case a matrix of pixels with color values for each
+            //OpenCV's Mat datatype is a multi-channel matrix, in this case a matrix of pixels with RGB color values for each
             String path = i.getAbsolutePath();
             Mat sourceImg = Imgcodecs.imread(path);
             //Look for a chessboard pattern in the Mat and assign the corner points to the Mat of 2d points foundCorners

@@ -25,8 +25,6 @@ import edu.wpi.cscore.UsbCamera;
 import edu.wpi.cscore.VideoSource;
 import edu.wpi.cscore.CvSource;
 import edu.wpi.first.cameraserver.CameraServer;
-import edu.wpi.first.networktables.EntryListenerFlags;
-import edu.wpi.first.networktables.NetworkTableInstance;
 
 import edu.wpi.first.networktables.*;
 
@@ -362,14 +360,9 @@ public final class Main {
         Calibration.setParameters();
       }
 
-      //create listeners that will determine whether to run thread code
-      goalRunnerEntry.addListener(event -> {
-        runGoalThread = goalRunnerEntry.getBoolean(false);
-      }, EntryListenerFlags.kNew | EntryListenerFlags.kUpdate);
-
       VisionThread goalVisionThread = new VisionThread(cameras.get(0),
-      new GoalPipeline(), pipeline -> {
-        if (runGoalThread) {
+      new GoalPipeline(goalRunnerEntry), pipeline -> {
+        if (goalRunnerEntry.getBoolean(false)) {
           System.out.println("GoalPipeline found " + GoalPipeline.convexHullsOutput.size() + " contours.");
           
           if(GoalPipeline.convexHullsOutput.size()>0){
@@ -435,14 +428,9 @@ public final class Main {
         }
       });
 
-      //create listeners that will determine whether to run thread code
-      cellRunnerEntry.addListener(event -> {
-        runCellThread = cellRunnerEntry.getBoolean(false);
-      }, EntryListenerFlags.kNew | EntryListenerFlags.kUpdate);
-
       VisionThread cellVisionThread = new VisionThread(cameras.get(0),
-      new CellPipeline(), pipeline -> {
-        if (runCellThread) {
+      new CellPipeline(cellRunnerEntry), pipeline -> {
+        if (cellRunnerEntry.getBoolean(false)) {
           System.out.println("CellPipeline found " + CellPipeline.findContoursOutput.size() + " contours.");
           
           if(CellPipeline.findContoursOutput.size()>0){
