@@ -350,15 +350,13 @@ public final class Main {
       CvSource goalDrawnVideo = inst.putVideo("Goal Vision Stream", 160, 120); //160 and 120 are the frame's width and height found in the FRCVision web dashboard under Vision Settings
       CvSource cellDrawnVideo = inst.putVideo("Powercell Vision Stream", 160, 120);
       
-      //Change the newCalibration variable in Calibration to true to run a new calibration. Otherwise, the recorded calibration parameters will be used
-      if (Calibration.newCalibration){
+    
         System.out.println("starting new calibration");
-        Calibration.calibrate();
-      }
-      else {
-        System.out.println("using recorded calibration");
-        Calibration.setParameters();
-      }
+        //New calibration for camera 1:
+        //Calibration.calibrate("calibrationInput/", 0.972, new Size(8,6), Camera1Parameters.intrinsic, Camera1Parameters.distortion);
+
+        //Use recorded calibration for camera 1
+        Camera1Parameters.setParameters();
 
       VisionThread goalVisionThread = new VisionThread(cameras.get(0),
       new GoalPipeline(goalRunnerEntry), pipeline -> {

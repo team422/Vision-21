@@ -13,35 +13,8 @@ import java.io.File;
 import java.lang.Math;
 
 public class Calibration {
-    public static boolean newCalibration = false; //set to true for a new calibration if there are new pictures or measurements
-    //Use CvType.CV_64FC1 in the Mat constructor to match the type output by calibrateCamera
-    public static Mat intrinsic = new Mat(new Size(3,3), CvType.CV_64FC1);
-    public static Mat distortion = new Mat(new Size(1,5), CvType.CV_64FC1);    
 
-    public static void setParameters(){
-        //the camera's intrinsic calibration parameters printed and copied from the calibration program
-        intrinsic.put(0, 0, 1120.806152144427);
-        intrinsic.put(0, 1, 0.0);
-        intrinsic.put(0, 2, 656.0544969441477);
-        intrinsic.put(1, 0, 0.0);
-        intrinsic.put(1, 1, 1144.5788932018418);
-        intrinsic.put(1, 2, 350.2481344026639);
-        intrinsic.put(2, 0, 0.0);
-        intrinsic.put(2, 1, 0.0);
-        intrinsic.put(2, 2, 1.0);
-
-        //the camera's distortion  parameters printed and copied from the calibration program
-        distortion.put(0, 0, 0.6362044891388661);
-        distortion.put(0, 1, 1.931599892274302);
-        distortion.put(0, 2, -0.14417110402084296);
-        distortion.put(0, 3, -0.04444195384927059);
-        distortion.put(0, 4, -17.203133890759332);
-    }
-
-    public static void calibrate(){
-        //constant variables
-        double sideLength = 0.972; //inches
-        Size boardSize = new Size(8,6);
+    public static void calibrate(String inputPath, double sideLengthInches, Size boardSize, Mat intrinsic, Mat distortion){
 
         //empty variables
         MatOfPoint2f foundCorners = new MatOfPoint2f();
@@ -57,9 +30,8 @@ public class Calibration {
         Assign all the matrices to a list of matrices
         */
 
-        //Assign all the files in the folder calibrationInput to an array of Files
-        //calibrationInput is a folder on the Pi containing .jpg images of a chessboard pattern 
-        File calibDir = new File("calibrationInput/");
+        //Assign all the files in the calibration input images folder to an array of Files 
+        File calibDir = new File(inputPath);
         File[] files = calibDir.listFiles();
         //Look for chessboard corner points in every file in the folder
         for (File i : files){
@@ -95,7 +67,7 @@ public class Calibration {
             for (int x = 0; x < boardSize.width; x++){
                 //The origin of the real world coordinate system can be arbitrarily picked as one of the corners and the x and y coordinates of all the corners set by measuring one chessboard square
                 //The z coordinate can always be 0 because the pattern should be flat when the pictures are taken, so all the points are in the same plane
-                realCornersTemplate.put(index, 0, new double[]{x*sideLength, y*sideLength, 0});
+                realCornersTemplate.put(index, 0, new double[]{x*sideLengthInches, y*sideLengthInches, 0});
                 index++;
             }
         }
@@ -137,7 +109,6 @@ public class Calibration {
                 System.out.println("Distortion matrix row " + row + ", column " + col + " is: " + distortion.get(row, col)[0]);
             }
         }
-        System.out.println("realCornersTemplate type is " + realCornersTemplate.type());
     } 
 
     public double convertAngle (Mat r) {
