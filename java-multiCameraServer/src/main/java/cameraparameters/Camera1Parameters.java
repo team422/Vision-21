@@ -13,7 +13,7 @@ public class Camera1Parameters {
     public static Mat intrinsic = new Mat(new Size(3,3), CvType.CV_64FC1);
     public static Mat distortion = new Mat(new Size(1,5), CvType.CV_64FC1);    
 
-    public static void setParameters(){
+    public Camera1Parameters(){
         //the camera's intrinsic calibration parameters printed and copied from the calibration program
         intrinsic.put(0, 0, 1120.806152144427);
         intrinsic.put(0, 1, 0.0);

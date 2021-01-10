@@ -39,6 +39,8 @@ import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.*;
 import org.opencv.objdetect.*;
 
+import cameraparameters.Camera1Parameters;
+
 
 /*
    JSON format:
@@ -350,14 +352,17 @@ public final class Main {
       CvSource goalDrawnVideo = inst.putVideo("Goal Vision Stream", 160, 120); //160 and 120 are the frame's width and height found in the FRCVision web dashboard under Vision Settings
       CvSource cellDrawnVideo = inst.putVideo("Powercell Vision Stream", 160, 120);
       
-    
-        System.out.println("starting new calibration");
-        //New calibration for camera 1:
-        //Calibration.calibrate("calibrationInput/", 0.972, new Size(8,6), Camera1Parameters.intrinsic, Camera1Parameters.distortion);
+      //Use recorded calibration for camera 1
+      Camera1Parameters camera1Parameters = new Camera1Parameters();
+      //New calibration for camera 1:
+      //Calibration.calibrate("calibrationInput/", 0.972, new Size(8,6), camera1Parameters.intrinsic, camera1Parameters.distortion);
 
-        //Use recorded calibration for camera 1
-        Camera1Parameters.setParameters();
-
+      MatOfPoint3f worldGoalPoints = new MatOfPoint3f();
+      worldGoalPoints.put(0, 0, new double[]{-19.630, 98.188, 0}); //top left
+      worldGoalPoints.put(1, 0, new double[]{-9.815, 81.188, 0}); //bottom left
+      worldGoalPoints.put(2, 0, new double[]{9.815, 81.188, 0}); //bottom right
+      worldGoalPoints.put(3, 0, new double[]{19.630, 98.188, 0}); //top right
+      
       VisionThread goalVisionThread = new VisionThread(cameras.get(0),
       new GoalPipeline(goalRunnerEntry), pipeline -> {
         if (goalRunnerEntry.getBoolean(false)) {
@@ -421,10 +426,21 @@ public final class Main {
               Imgproc.circle(GoalPipeline.drawnExampleGoalImg, new Point(reorderedCorners.get(i, 0)[0],reorderedCorners.get(i, 0)[1]), 5, new Scalar(0,0,255), 2);
             }
             
+            List<Mat> translation = new ArrayList<Mat>();
+            List<Mat> rotation = new ArrayList<Mat>();
+            Calib3d.solvePnPGeneric(worldGoalPoints, reorderedCorners, Camera1Parameters.intrinsic, Camera1Parameters.distortion, rotation, translation);
+
             goalDrawnVideo.putFrame(GoalPipeline.drawnExampleGoalImg);
           }
         }
       });
+
+      MatOfPoint3f worldCellPoints = new MatOfPoint3f();
+      worldCellPoints.put(0, 0, new double[]{0, 3.5, 3.5}); //front
+      worldCellPoints.put(1, 0, new double[]{0, 7, 0}); //top
+      worldCellPoints.put(2, 0, new double[]{3.5, 3.5, 0}); //right
+      worldCellPoints.put(3, 0, new double[]{0, 0, 0}); //bottom
+      worldCellPoints.put(4, 0, new double[]{-3.5, 3.5, 0}); //left
 
       VisionThread cellVisionThread = new VisionThread(cameras.get(0),
       new CellPipeline(cellRunnerEntry), pipeline -> {
@@ -445,13 +461,27 @@ public final class Main {
             CellPipeline.findContoursOutput.get(maxSizeIndex).copyTo(largestContour);
 
             //Identify the center X coordinate of a rectangle drawn around the largest contour
-            Rect boundRect = Imgproc.boundingRect(largestContour);
-            double centerX = boundRect.x + (boundRect.width / 2);
+            MatOfPoint2f rectangleInput = new MatOfPoint2f();
+            largestContour.convertTo(rectangleInput, CvType.CV_32FC2);
+            Point boundCircCenter = new Point();
+            float[] boundCircRadius = new float[1];
+            Imgproc.minEnclosingCircle(rectangleInput, boundCircCenter, boundCircRadius);
+            MatOfPoint2f orderedCirclePoints = new MatOfPoint2f();
+            orderedCirclePoints.put(0, 0, new double[]{boundCircCenter.x, boundCircCenter.y}); //the front of the ball
+            orderedCirclePoints.put(1, 0, new double[]{boundCircCenter.x, boundCircCenter.y - boundCircRadius[0]}); //the top of the ball
+            orderedCirclePoints.put(2, 0, new double[]{boundCircCenter.x + boundCircRadius[0], boundCircCenter.y}); //the right side of the ball
+            orderedCirclePoints.put(3, 0, new double[]{boundCircCenter.x, boundCircCenter.y + boundCircRadius[0]}); //the bottom of the ball
+            orderedCirclePoints.put(5, 0, new double[]{boundCircCenter.x - boundCircRadius[0], boundCircCenter.y}); //the left side of the ball
 
-            //Find a correction value between -1 and 1 based on the center of the rectangle and the center of the frame
-            double correction = (centerX - (CellPipeline.drawnFrame.width()/2)) * (2/CellPipeline.drawnFrame.width());
+            //correction things
+            // //Identify the center X coordinate of a rectangle drawn around the largest contour
+            // Rect boundRect = Imgproc.boundingRect(largestContour);
+            // double centerX = boundRect.x + (boundRect.width / 2);
 
-            correctionEntry.forceSetDouble(correction);
+            // //Find a correction value between -1 and 1 based on the center of the rectangle and the center of the frame
+            // double correction = (centerX - (CellPipeline.drawnFrame.width()/2)) * (2/CellPipeline.drawnFrame.width());
+
+            // correctionEntry.forceSetDouble(correction);
 
             /*
             Use OpenCV's drawContours method with parameters:
@@ -464,6 +494,10 @@ public final class Main {
             */
             Imgproc.drawContours(CellPipeline.drawnFrame, CellPipeline.findContoursOutput, maxSizeIndex, new Scalar(255,255,0), 2, 4);
             
+            List<Mat> translation = new ArrayList<Mat>();
+            List<Mat> rotation = new ArrayList<Mat>();
+            Calib3d.solvePnPGeneric(worldCellPoints, orderedCirclePoints, Camera1Parameters.intrinsic, Camera1Parameters.distortion, rotation, translation);
+
             cellDrawnVideo.putFrame(CellPipeline.drawnFrame);
           }
         }
