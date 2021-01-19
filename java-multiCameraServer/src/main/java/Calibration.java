@@ -17,7 +17,6 @@ public class Calibration {
     public static void calibrate(String inputPath, double sideLengthInches, Size boardSize, Mat intrinsic, Mat distortion){
 
         //empty variables
-        MatOfPoint2f foundCorners = new MatOfPoint2f();
         List<Mat> allProjectedCorners = new ArrayList<Mat>();
         List<Mat> allRealCorners = new ArrayList<Mat>();
         List<Mat> rotation = new ArrayList<Mat>();    
@@ -41,7 +40,9 @@ public class Calibration {
             Mat sourceImg = Imgcodecs.imread(path);
             //Look for a chessboard pattern in the Mat and assign the corner points to the Mat of 2d points foundCorners
             //the method returns true if successful
+            MatOfPoint2f foundCorners = new MatOfPoint2f();
             boolean success = Calib3d.findChessboardCorners(sourceImg, boardSize, foundCorners);
+            System.out.println("foundcorners size is " + foundCorners.size().width + "," + foundCorners.size().height);
             if (success){
                 //add foundCorners to the list of matrices allProjectedCorners and record the size of the image
                 allProjectedCorners.add(foundCorners);
@@ -61,7 +62,7 @@ public class Calibration {
         However, the matrix of 2d coordinates does not correspond to the rows/columns of the actual corners (e.g. 8x6), but instead has a row for each corner (e.g. 1x48), so we must store the 3d points in the same way 
         So we use two for loops, the y loop keeping track of the rows and the x loop keeping track of the points within a row, and a index variable to keep track of the number of the points overall
         */
-        Mat realCornersTemplate = new Mat(new Size(foundCorners.width(), foundCorners.height()), CvType.CV_32FC3);
+        Mat realCornersTemplate = new Mat(new Size(1, boardSize.width * boardSize.height), CvType.CV_32FC3);
         int index = 0;
         for (int y = 0; y < boardSize.height; y++){
             for (int x = 0; x < boardSize.width; x++){
@@ -75,6 +76,10 @@ public class Calibration {
         //The same template can be used every time because the real world points did not change while the pictures were taken
         for (int i = 0; i < allProjectedCorners.size(); i++){
             allRealCorners.add(i, realCornersTemplate);
+        }
+
+        for (Mat i : allProjectedCorners){
+            System.out.println("corner 1 is (" + i.get(0, 0)[0] + "," + i.get(0, 0)[1] + ")");
         }
 
         /*
@@ -103,15 +108,44 @@ public class Calibration {
                 System.out.println("Intrinsic matrix row " + row + ", column " + col + " is: " + intrinsic.get(row, col)[0]);
             }
         }
+        
         System.out.println("distortion matrix size is " + distortion.size());
         for (int row = 0; row < distortion.rows(); row++){
             for (int col = 0; col < distortion.cols(); col++){
                 System.out.println("Distortion matrix row " + row + ", column " + col + " is: " + distortion.get(row, col)[0]);
             }
         }
+
+        //Print the extrinsic parameters for comparison to images
+        for (int i = 0; i < translation.size(); i++){
+            System.out.println("NEW FILE. file # " + i + " is " + files[i].getAbsolutePath());
+            for (int row = 0; row < translation.get(i).rows(); row++){
+                for (int col = 0; col < translation.get(i).cols(); col++){
+                    System.out.println("translation matrix row " + row + ", column " + col + " is: " + translation.get(i).get(row, col)[0]);
+                }
+            }
+
+            for (int row = 0; row < rotation.get(i).rows(); row++){
+                for (int col = 0; col < rotation.get(i).cols(); col++){
+                    System.out.println("rotation matrix row " + row + ", column " + col + " is: " + rotation.get(i).get(row, col)[0]);
+                }
+            }
+
+            Mat rMatrix = new Mat();
+            Calib3d.Rodrigues(rotation.get(i), rMatrix);
+            double sy = Math.sqrt(Math.pow(rMatrix.get(0, 0)[0], 2) + Math.pow(rMatrix.get(1, 0)[0], 2));
+            System.out.println("heading is " + Math.toDegrees(Math.atan2(-rMatrix.get(2, 0)[0], sy)));
+        }
+        
+       
+
+        
     } 
 
-    public double convertAngle (Mat r) {
-        return Math.atan2(-r.get(2, 0)[0], r.get(0, 0)[0]);
+    public double rVecToHeading(Mat rVector) {
+        Mat rMatrix = new Mat();
+        Calib3d.Rodrigues(rVector, rMatrix);
+        double sy = Math.sqrt(Math.pow(rMatrix.get(0, 0)[0], 2) + Math.pow(rMatrix.get(1, 0)[0], 2));
+        return Math.toDegrees(Math.atan2(-rMatrix.get(2, 0)[0], sy));
     }
 }

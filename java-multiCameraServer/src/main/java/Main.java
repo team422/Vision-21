@@ -353,9 +353,9 @@ public final class Main {
       CvSource cellDrawnVideo = inst.putVideo("Powercell Vision Stream", 160, 120);
       
       //Use recorded calibration for camera 1
-      Camera1Parameters camera1Parameters = new Camera1Parameters();
+      // Camera1Parameters camera1Parameters = new Camera1Parameters();
       //New calibration for camera 1:
-      //Calibration.calibrate("calibrationInput/", 0.972, new Size(8,6), camera1Parameters.intrinsic, camera1Parameters.distortion);
+      Calibration.calibrate("calibrationInput/", 0.972, new Size(8,6), Camera1Parameters.intrinsic, Camera1Parameters.distortion);
 
       MatOfPoint3f worldGoalPoints = new MatOfPoint3f();
       worldGoalPoints.put(0, 0, new double[]{-19.630, 98.188, 0}); //top left
