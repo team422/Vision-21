@@ -42,7 +42,6 @@ public class Calibration {
             //the method returns true if successful
             MatOfPoint2f foundCorners = new MatOfPoint2f();
             boolean success = Calib3d.findChessboardCorners(sourceImg, boardSize, foundCorners);
-            System.out.println("foundcorners size is " + foundCorners.size().width + "," + foundCorners.size().height);
             if (success){
                 //add foundCorners to the list of matrices allProjectedCorners and record the size of the image
                 allProjectedCorners.add(foundCorners);
@@ -68,7 +67,7 @@ public class Calibration {
             for (int x = 0; x < boardSize.width; x++){
                 //The origin of the real world coordinate system can be arbitrarily picked as one of the corners and the x and y coordinates of all the corners set by measuring one chessboard square
                 //The z coordinate can always be 0 because the pattern should be flat when the pictures are taken, so all the points are in the same plane
-                realCornersTemplate.put(index, 0, new double[]{x*sideLengthInches, y*sideLengthInches, 0});
+                realCornersTemplate.put(index, 0, new double[]{-x*sideLengthInches, -y*sideLengthInches, 0});
                 index++;
             }
         }
@@ -76,10 +75,6 @@ public class Calibration {
         //The same template can be used every time because the real world points did not change while the pictures were taken
         for (int i = 0; i < allProjectedCorners.size(); i++){
             allRealCorners.add(i, realCornersTemplate);
-        }
-
-        for (Mat i : allProjectedCorners){
-            System.out.println("corner 1 is (" + i.get(0, 0)[0] + "," + i.get(0, 0)[1] + ")");
         }
 
         /*
@@ -118,23 +113,12 @@ public class Calibration {
 
         //Print the extrinsic parameters for comparison to images
         for (int i = 0; i < translation.size(); i++){
-            System.out.println("NEW FILE. file # " + i + " is " + files[i].getAbsolutePath());
-            for (int row = 0; row < translation.get(i).rows(); row++){
-                for (int col = 0; col < translation.get(i).cols(); col++){
-                    System.out.println("translation matrix row " + row + ", column " + col + " is: " + translation.get(i).get(row, col)[0]);
-                }
-            }
-
-            for (int row = 0; row < rotation.get(i).rows(); row++){
-                for (int col = 0; col < rotation.get(i).cols(); col++){
-                    System.out.println("rotation matrix row " + row + ", column " + col + " is: " + rotation.get(i).get(row, col)[0]);
-                }
-            }
-
+            System.out.print("file # " + i + " is " + files[i].getAbsolutePath());
+            System.out.print(" translation is x:" + translation.get(i).get(0,0)[0] + ", y:" + translation.get(i).get(1,0)[0] + ", z:" + translation.get(i).get(2,0)[0]);
             Mat rMatrix = new Mat();
             Calib3d.Rodrigues(rotation.get(i), rMatrix);
             double sy = Math.sqrt(Math.pow(rMatrix.get(0, 0)[0], 2) + Math.pow(rMatrix.get(1, 0)[0], 2));
-            System.out.println("heading is " + Math.toDegrees(Math.atan2(-rMatrix.get(2, 0)[0], sy)));
+            System.out.println(", heading is " + Math.toDegrees(Math.atan2(-rMatrix.get(2, 0)[0], sy)) + " degrees");
         }
         
        

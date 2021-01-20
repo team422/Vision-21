@@ -15,22 +15,22 @@ public class Camera1Parameters {
 
     public Camera1Parameters(){
         //the camera's intrinsic calibration parameters printed and copied from the calibration program
-        intrinsic.put(0, 0, 1120.806152144427);
+        intrinsic.put(0, 0, 1139.799113533916);
         intrinsic.put(0, 1, 0.0);
-        intrinsic.put(0, 2, 656.0544969441477);
+        intrinsic.put(0, 2, 659.814616987545);
         intrinsic.put(1, 0, 0.0);
-        intrinsic.put(1, 1, 1144.5788932018418);
-        intrinsic.put(1, 2, 350.2481344026639);
+        intrinsic.put(1, 1, 1141.6840488928026);
+        intrinsic.put(1, 2, 325.594684252985);
         intrinsic.put(2, 0, 0.0);
         intrinsic.put(2, 1, 0.0);
         intrinsic.put(2, 2, 1.0);
 
         //the camera's distortion  parameters printed and copied from the calibration program
-        distortion.put(0, 0, 0.6362044891388661);
-        distortion.put(0, 1, 1.931599892274302);
-        distortion.put(0, 2, -0.14417110402084296);
-        distortion.put(0, 3, -0.04444195384927059);
-        distortion.put(0, 4, -17.203133890759332);
+        distortion.put(0, 0, 0.12904742889483867);
+        distortion.put(1, 0, -1.045511843341881);
+        distortion.put(2, 0, -0.006297485063064625);
+        distortion.put(3, 0, 0.0014780742475828256);
+        distortion.put(4, 0, 1.9880640078182654);
     }
 
 }
