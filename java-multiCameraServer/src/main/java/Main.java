@@ -330,10 +330,15 @@ public final class Main {
 
     //Create/call the table visionTable and assign its entries to NetworkTableEntry variables
     NetworkTable table = ntinst.getTable("visionTable");
-    NetworkTableEntry goalRunnerEntry = table.getEntry("runGoalVision");
-    NetworkTableEntry cellRunnerEntry = table.getEntry("runCellVision");
-    NetworkTableEntry testEntry = table.getEntry("test");
-    NetworkTableEntry correctionEntry = table.getEntry("correction");
+    NetworkTableEntry goalRunnerEntry = table.getEntry("GoalVisionRunner");
+    NetworkTableEntry goalLateralTranslationEntry = table.getEntry("GoalVisionLateralTranslation");
+    NetworkTableEntry goalLongitudinalTranslationEntry = table.getEntry("GoalVisionLongitudinalTranslation");
+    NetworkTableEntry goalRotationEntry = table.getEntry("GoalVisionRotation");
+    NetworkTableEntry cellRunnerEntry = table.getEntry("CellVisionRunner");
+    NetworkTableEntry cellLateralTranslationEntry = table.getEntry("CellVisionLateralTranslation");
+    NetworkTableEntry cellLongitudinalTranslationEntry = table.getEntry("CellVisionLongitudinalTranslation");
+    NetworkTableEntry cellRotationEntry = table.getEntry("CellVisionRotation");
+
 
     // start cameras
     for (CameraConfig config : cameraConfigs) {
@@ -353,9 +358,9 @@ public final class Main {
       CvSource cellDrawnVideo = inst.putVideo("Powercell Vision Stream", 160, 120);
       
       //Use recorded calibration for camera 1
-      // Camera1Parameters camera1Parameters = new Camera1Parameters();
+      Camera1Parameters camera1Parameters = new Camera1Parameters();
       //New calibration for camera 1:
-      Calibration.calibrate("calibrationInput/", 0.972, new Size(8,6), Camera1Parameters.intrinsic, Camera1Parameters.distortion);
+      //Calibration.calibrate("calibrationInput/", 0.972, new Size(8,6), Camera1Parameters.intrinsic, Camera1Parameters.distortion);
 
       MatOfPoint3f worldGoalPoints = new MatOfPoint3f();
       worldGoalPoints.put(0, 0, new double[]{-19.630, 98.188, 0}); //top left
@@ -430,6 +435,10 @@ public final class Main {
             List<Mat> rotation = new ArrayList<Mat>();
             Calib3d.solvePnPGeneric(worldGoalPoints, reorderedCorners, Camera1Parameters.intrinsic, Camera1Parameters.distortion, rotation, translation);
 
+            goalLateralTranslationEntry.forceSetDouble(translation.get(0).get(0, 0)[0]);
+            goalLongitudinalTranslationEntry.forceSetDouble(translation.get(0).get(2, 0)[0]);
+            goalRotationEntry.forceSetDouble(Calibration.rVecToHeading(rotation.get(0)));
+
             goalDrawnVideo.putFrame(GoalPipeline.drawnExampleGoalImg);
           }
         }
@@ -473,6 +482,11 @@ public final class Main {
             orderedCirclePoints.put(3, 0, new double[]{boundCircCenter.x, boundCircCenter.y + boundCircRadius[0]}); //the bottom of the ball
             orderedCirclePoints.put(5, 0, new double[]{boundCircCenter.x - boundCircRadius[0], boundCircCenter.y}); //the left side of the ball
 
+            for (int i = 0; i < orderedCirclePoints.size().height; i++){
+              Imgproc.circle(CellPipeline.drawnExampleCellImg, new Point(orderedCirclePoints.get(i, 0)[0],orderedCirclePoints.get(i, 0)[1]), 5, new Scalar((i+1)*63,(i+1)*63,(i+1)*63), -1);
+              Imgproc.circle(CellPipeline.drawnExampleCellImg, new Point(orderedCirclePoints.get(i, 0)[0],orderedCirclePoints.get(i, 0)[1]), 5, new Scalar(0,0,255), 2);
+            }
+
             //correction things
             // //Identify the center X coordinate of a rectangle drawn around the largest contour
             // Rect boundRect = Imgproc.boundingRect(largestContour);
@@ -492,13 +506,17 @@ public final class Main {
             A thickness to draw in: 2
             A line format: 8, which is recommended, so go with that
             */
-            Imgproc.drawContours(CellPipeline.drawnFrame, CellPipeline.findContoursOutput, maxSizeIndex, new Scalar(255,255,0), 2, 4);
+            // Imgproc.drawContours(CellPipeline.drawnFrame, CellPipeline.findContoursOutput, maxSizeIndex, new Scalar(255,255,0), 2, 4);
             
             List<Mat> translation = new ArrayList<Mat>();
             List<Mat> rotation = new ArrayList<Mat>();
             Calib3d.solvePnPGeneric(worldCellPoints, orderedCirclePoints, Camera1Parameters.intrinsic, Camera1Parameters.distortion, rotation, translation);
 
-            cellDrawnVideo.putFrame(CellPipeline.drawnFrame);
+            cellLateralTranslationEntry.forceSetDouble(translation.get(0).get(0, 0)[0]);
+            cellLongitudinalTranslationEntry.forceSetDouble(translation.get(0).get(2, 0)[0]);
+            cellRotationEntry.forceSetDouble(Calibration.rVecToHeading(rotation.get(0)));
+
+            cellDrawnVideo.putFrame(CellPipeline.exampleCellImg);
           }
         }
       });

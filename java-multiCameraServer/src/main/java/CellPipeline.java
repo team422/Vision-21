@@ -6,6 +6,7 @@ import edu.wpi.first.vision.VisionPipeline;
 
 import org.opencv.core.*;
 import org.opencv.imgproc.*;
+import org.opencv.imgcodecs.Imgcodecs;
 
 import edu.wpi.first.networktables.NetworkTableEntry;
 
@@ -28,6 +29,9 @@ public class CellPipeline implements VisionPipeline {
 
 	private NetworkTableEntry runnerEntry;
 
+	public static Mat exampleCellImg = Imgcodecs.imread("DSC02195.jpg");
+	public static Mat drawnExampleCellImg = new Mat();
+
 	//Outputs
 	private Mat blurOutput = new Mat();
 	private Mat hsvThresholdOutput = new Mat();
@@ -44,6 +48,8 @@ public class CellPipeline implements VisionPipeline {
 	@Override	public void process(Mat source0) {
 		if (!runnerEntry.getBoolean(false)){return;}
 		source0.copyTo(drawnFrame);
+
+		exampleCellImg.copyTo(drawnExampleCellImg);
 
 		// Step Blur0:
 		Mat blurInput = source0;
