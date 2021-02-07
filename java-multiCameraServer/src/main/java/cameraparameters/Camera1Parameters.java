@@ -12,8 +12,11 @@ public class Camera1Parameters {
     //Use CvType.CV_64FC1 in the Mat constructor to match the type output by calibrateCamera
     public static Mat intrinsic = new Mat(new Size(3,3), CvType.CV_64FC1);
     public static Mat distortion = new Mat(new Size(1,5), CvType.CV_64FC1);    
+    public static double hFOV = 61.3727248; //degrees
+    public static double height;
+    
 
-    public Camera1Parameters(){
+    public static void setParameters(){
         //the camera's intrinsic calibration parameters printed and copied from the calibration program
         intrinsic.put(0, 0, 1139.7991135329983);
         intrinsic.put(0, 1, 0.0);

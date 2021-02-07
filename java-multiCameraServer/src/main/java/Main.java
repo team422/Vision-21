@@ -358,16 +358,15 @@ public final class Main {
       CvSource cellDrawnVideo = inst.putVideo("Powercell Vision Stream", 160, 120);
       
       //Use recorded calibration for camera 1
-      Camera1Parameters camera1Parameters = new Camera1Parameters();
+      Camera1Parameters.setParameters();
       //New calibration for camera 1:
-      //Calibration.calibrate("calibrationInput/", 0.972, new Size(8,6), Camera1Parameters.intrinsic, Camera1Parameters.distortion);
-
+      //Calibration.calibrate("calibration1Input/", 0.972, new Size(8,6), Camera1Parameters.intrinsic, Camera1Parameters.distortion);
       MatOfPoint3f worldGoalPoints = new MatOfPoint3f();
       worldGoalPoints.put(0, 0, new double[]{-19.630, 98.188, 0}); //top left
       worldGoalPoints.put(1, 0, new double[]{-9.815, 81.188, 0}); //bottom left
       worldGoalPoints.put(2, 0, new double[]{9.815, 81.188, 0}); //bottom right
       worldGoalPoints.put(3, 0, new double[]{19.630, 98.188, 0}); //top right
-      
+
       VisionThread goalVisionThread = new VisionThread(cameras.get(0),
       new GoalPipeline(goalRunnerEntry), pipeline -> {
         if (goalRunnerEntry.getBoolean(false)) {
@@ -444,16 +443,18 @@ public final class Main {
         }
       });
 
-      MatOfPoint3f worldCellPoints = new MatOfPoint3f();
-      worldCellPoints.put(0, 0, new double[]{0, 3.5, 3.5}); //front
-      worldCellPoints.put(1, 0, new double[]{0, 7, 0}); //top
-      worldCellPoints.put(2, 0, new double[]{3.5, 3.5, 0}); //right
-      worldCellPoints.put(3, 0, new double[]{0, 0, 0}); //bottom
-      worldCellPoints.put(4, 0, new double[]{-3.5, 3.5, 0}); //left
+      // MatOfPoint3f worldCellPoints = new MatOfPoint3f();
+      // Mat worldCellPointsGeneric = new Mat(4,1,CvType.CV_32FC3);
+      // worldCellPointsGeneric.copyTo(worldCellPoints);
+
+      // worldCellPoints.put(0, 0, new double[]{0, 7, 0}); //top
+      // worldCellPoints.put(1, 0, new double[]{3.5, 3.5, 0}); //right
+      // worldCellPoints.put(2, 0, new double[]{0, 0, 0}); //bottom
+      // worldCellPoints.put(3, 0, new double[]{-3.5, 3.5, 0}); //left
 
       VisionThread cellVisionThread = new VisionThread(cameras.get(0),
       new CellPipeline(cellRunnerEntry), pipeline -> {
-        if (cellRunnerEntry.getBoolean(false)) {
+        if (cellRunnerEntry.getBoolean(true)) {
           System.out.println("CellPipeline found " + CellPipeline.findContoursOutput.size() + " contours.");
           
           if(CellPipeline.findContoursOutput.size()>0){
@@ -469,25 +470,46 @@ public final class Main {
             MatOfPoint largestContour = new MatOfPoint();
             CellPipeline.findContoursOutput.get(maxSizeIndex).copyTo(largestContour);
 
+            Imgproc.drawContours(CellPipeline.drawnFrame, CellPipeline.findContoursOutput, maxSizeIndex, new Scalar(255,255,0));
+
             //Identify the center X coordinate of a rectangle drawn around the largest contour
-            MatOfPoint2f rectangleInput = new MatOfPoint2f();
-            largestContour.convertTo(rectangleInput, CvType.CV_32FC2);
+            MatOfPoint2f circleInput = new MatOfPoint2f();
+            largestContour.convertTo(circleInput, CvType.CV_32FC2);
             Point boundCircCenter = new Point();
             float[] boundCircRadius = new float[1];
-            Imgproc.minEnclosingCircle(rectangleInput, boundCircCenter, boundCircRadius);
-            MatOfPoint2f orderedCirclePoints = new MatOfPoint2f();
-            orderedCirclePoints.put(0, 0, new double[]{boundCircCenter.x, boundCircCenter.y}); //the front of the ball
-            orderedCirclePoints.put(1, 0, new double[]{boundCircCenter.x, boundCircCenter.y - boundCircRadius[0]}); //the top of the ball
-            orderedCirclePoints.put(2, 0, new double[]{boundCircCenter.x + boundCircRadius[0], boundCircCenter.y}); //the right side of the ball
-            orderedCirclePoints.put(3, 0, new double[]{boundCircCenter.x, boundCircCenter.y + boundCircRadius[0]}); //the bottom of the ball
-            orderedCirclePoints.put(5, 0, new double[]{boundCircCenter.x - boundCircRadius[0], boundCircCenter.y}); //the left side of the ball
+            Imgproc.minEnclosingCircle(circleInput, boundCircCenter, boundCircRadius);
+            Imgproc.circle(CellPipeline.drawnFrame, boundCircCenter, (int)boundCircRadius[0], new Scalar(255,255,255));
+            
+            double heading = ((boundCircCenter.x - (CellPipeline.drawnFrame.width() / 2)) / CellPipeline.drawnFrame.width()) * Camera1Parameters.hFOV;
+            System.out.println("heading is " + heading + " degrees");
+            
+            //3D CALIBRATION THINGS
+            // MatOfPoint2f orderedCirclePoints = new MatOfPoint2f();
+            // Mat orderecCirclePointsGeneric = new Mat(4,1,CvType.CV_32FC2);
+            // orderecCirclePointsGeneric.copyTo(orderedCirclePoints);
+            // orderedCirclePoints.put(0, 0, new double[]{boundCircCenter.x, boundCircCenter.y - boundCircRadius[0]}); //the top of the ball
+            // Imgproc.circle(CellPipeline.drawnFrame, new Point(orderedCirclePoints.get(0, 0)[0],orderedCirclePoints.get(0, 0)[1]), 3, new Scalar(0,0,255), -1);
+            // orderedCirclePoints.put(1, 0, new double[]{boundCircCenter.x + boundCircRadius[0], boundCircCenter.y}); //the right side of the ball
+            // orderedCirclePoints.put(2, 0, new double[]{boundCircCenter.x, boundCircCenter.y + boundCircRadius[0]}); //the bottom of the ball
+            // orderedCirclePoints.put(3, 0, new double[]{boundCircCenter.x - boundCircRadius[0], boundCircCenter.y}); //the left side of the ball
+            // for (int i = 0; i < orderedCirclePoints.size().height; i++){
+            //   Imgproc.circle(CellPipeline.drawnFrame, new Point(orderedCirclePoints.get(i, 0)[0],orderedCirclePoints.get(i, 0)[1]), 3, new Scalar((i+1)*63,(i+1)*63,(i+1)*63), -1);
+            //   Imgproc.circle(CellPipeline.drawnFrame, new Point(orderedCirclePoints.get(i, 0)[0],orderedCirclePoints.get(i, 0)[1]), 3, new Scalar(0,0,255), 1);
+            // 
 
-            for (int i = 0; i < orderedCirclePoints.size().height; i++){
-              Imgproc.circle(CellPipeline.drawnExampleCellImg, new Point(orderedCirclePoints.get(i, 0)[0],orderedCirclePoints.get(i, 0)[1]), 5, new Scalar((i+1)*63,(i+1)*63,(i+1)*63), -1);
-              Imgproc.circle(CellPipeline.drawnExampleCellImg, new Point(orderedCirclePoints.get(i, 0)[0],orderedCirclePoints.get(i, 0)[1]), 5, new Scalar(0,0,255), 2);
-            }
+            // List<Mat> translation = new ArrayList<Mat>();
+            // List<Mat> rotation = new ArrayList<Mat>();
+            // Calib3d.solvePnPGeneric(worldCellPoints, orderedCirclePoints, Camera1Parameters.intrinsic, Camera1Parameters.distortion, rotation, translation);
 
-            //correction things
+            // System.out.print("lateral translation is " + translation.get(0).get(0, 0)[0]);
+            // System.out.print("longitudinal translation is " + translation.get(0).get(2, 0)[0]);
+            // System.out.println("rotation is " + Calibration.rVecToHeading(rotation.get(0)));
+
+            // cellLateralTranslationEntry.forceSetDouble(translation.get(0).get(0, 0)[0]);
+            // cellLongitudinalTranslationEntry.forceSetDouble(translation.get(0).get(2, 0)[0]);
+            // cellRotationEntry.forceSetDouble(Calibration.rVecToHeading(rotation.get(0)));
+
+            //CORRECTION THINGS
             // //Identify the center X coordinate of a rectangle drawn around the largest contour
             // Rect boundRect = Imgproc.boundingRect(largestContour);
             // double centerX = boundRect.x + (boundRect.width / 2);
@@ -507,16 +529,9 @@ public final class Main {
             A line format: 8, which is recommended, so go with that
             */
             // Imgproc.drawContours(CellPipeline.drawnFrame, CellPipeline.findContoursOutput, maxSizeIndex, new Scalar(255,255,0), 2, 4);
-            
-            List<Mat> translation = new ArrayList<Mat>();
-            List<Mat> rotation = new ArrayList<Mat>();
-            Calib3d.solvePnPGeneric(worldCellPoints, orderedCirclePoints, Camera1Parameters.intrinsic, Camera1Parameters.distortion, rotation, translation);
+          
 
-            cellLateralTranslationEntry.forceSetDouble(translation.get(0).get(0, 0)[0]);
-            cellLongitudinalTranslationEntry.forceSetDouble(translation.get(0).get(2, 0)[0]);
-            cellRotationEntry.forceSetDouble(Calibration.rVecToHeading(rotation.get(0)));
-
-            cellDrawnVideo.putFrame(CellPipeline.exampleCellImg);
+            cellDrawnVideo.putFrame(CellPipeline.drawnFrame);
           }
         }
       });
