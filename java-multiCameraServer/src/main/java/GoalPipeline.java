@@ -1,4 +1,3 @@
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -53,7 +52,7 @@ public class GoalPipeline implements VisionPipeline {
 	 */
 	@Override	public void process(Mat source0) {
 		if (!runnerEntry.getBoolean(false)){return;}
-		source0.copyTo(drawnFrame);;
+		source0.copyTo(drawnFrame);
 		exampleGoalImg.copyTo(drawnExampleGoalImg);
 
 		// Step Blur0:

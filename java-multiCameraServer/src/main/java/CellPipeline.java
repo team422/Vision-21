@@ -10,6 +10,7 @@ import org.opencv.imgcodecs.Imgcodecs;
 
 import edu.wpi.first.networktables.NetworkTableEntry;
 
+
 /**
 * CellPipeline class.
 *
@@ -36,14 +37,13 @@ public class CellPipeline implements VisionPipeline {
 	 * This is the primary method that runs the entire pipeline and updates the outputs.
 	 */
 	@Override	public void process(Mat source0) {
-		if(!runnerEntry.getBoolean(true)){return;}
-
+		if (!runnerEntry.getBoolean(false)){return;}
 		source0.copyTo(drawnFrame);
 
 		// Step HSV_Threshold0:
 		Mat hsvThresholdInput = source0;
-		double[] hsvThresholdHue = {14.568345323741006, 40.23890784982935};
-		double[] hsvThresholdSaturation = {90.19783881070806, 255.0};
+		double[] hsvThresholdHue = {14.568345323741006, 44.33447001330275};
+		double[] hsvThresholdSaturation = {144.0, 255.0};
 		double[] hsvThresholdValue = {0.0, 255.0};
 		hsvThreshold(hsvThresholdInput, hsvThresholdHue, hsvThresholdSaturation, hsvThresholdValue, hsvThresholdOutput);
 
@@ -51,7 +51,7 @@ public class CellPipeline implements VisionPipeline {
 		Mat cvErodeSrc = hsvThresholdOutput;
 		Mat cvErodeKernel = new Mat();
 		Point cvErodeAnchor = new Point(-1, -1);
-		double cvErodeIterations = 2.0;
+		double cvErodeIterations = 4.0;
 		int cvErodeBordertype = Core.BORDER_DEFAULT;
 		Scalar cvErodeBordervalue = new Scalar(-1);
 		cvErode(cvErodeSrc, cvErodeKernel, cvErodeAnchor, cvErodeIterations, cvErodeBordertype, cvErodeBordervalue, cvErodeOutput);
@@ -60,7 +60,7 @@ public class CellPipeline implements VisionPipeline {
 		Mat cvDilateSrc = cvErodeOutput;
 		Mat cvDilateKernel = new Mat();
 		Point cvDilateAnchor = new Point(-1, -1);
-		double cvDilateIterations = 2.0;
+		double cvDilateIterations = 4.0;
 		int cvDilateBordertype = Core.BORDER_DEFAULT;
 		Scalar cvDilateBordervalue = new Scalar(-1);
 		cvDilate(cvDilateSrc, cvDilateKernel, cvDilateAnchor, cvDilateIterations, cvDilateBordertype, cvDilateBordervalue, cvDilateOutput);
@@ -196,8 +196,6 @@ public class CellPipeline implements VisionPipeline {
 		super();
 		runnerEntry = entryin;
 	}
-
-
 
 }
 

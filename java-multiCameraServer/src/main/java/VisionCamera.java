@@ -4,6 +4,7 @@ import java.util.List;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint2f;
+import org.opencv.core.Point;
 
 import org.opencv.core.Size;
 import org.opencv.imgcodecs.Imgcodecs;
@@ -12,9 +13,68 @@ import java.io.File;
 
 import java.lang.Math;
 
-public class Calibration {
+/**
+* A class that handles position estimation with different vision cameras
+*/
+public class VisionCamera {
 
-    public static void calibrate(String inputPath, double sideLengthInches, Size boardSize, Mat intrinsic, Mat distortion){
+    //Camera's intrinsic characteristics
+    public Mat intrinsic;
+    public Mat distortion;
+    public Size frameSize;
+    public double horizontalAspectRatio;
+    public double verticalAspectRatio;
+    public double diagonalFOV; //in degrees
+    public double horizontalFOV; //in degrees
+    public double verticalFOV; //in degrees
+
+    //Camera's physical position on robot
+    public double height; //distance from floor in inches
+    public double forwardOffset; //distance from center of robot in inches, positive forward, negative backward
+    public double horizontalOffset; //distance from center of robot in inches, positive right, negative left
+    public double verticalAngle; //angle from horizontal line to direction camera points in degrees
+    public double horizontalAngle; //angle from direction robot faces to direction camera points in degrees
+
+    //Names to handle sets of properties for one camera
+    public static enum CameraName {
+        HomeTesting
+    }
+
+    public VisionCamera(CameraName name) {
+        if (name == CameraName.HomeTesting) {
+            //Set the camera's intrinsic calibration matrix, printed and copied from the calibration program
+            this.intrinsic = new Mat(new Size(3,3), CvType.CV_64FC1);
+            this.intrinsic.put(0, 0, 1139.7991135329983);
+            this.intrinsic.put(0, 1, 0.0);
+            this.intrinsic.put(0, 2, 659.8146169863334);
+            this.intrinsic.put(1, 0, 0.0);
+            this.intrinsic.put(1, 1, 1141.6840488922544);
+            this.intrinsic.put(1, 2, 325.5946842533636);
+            this.intrinsic.put(2, 0, 0.0);
+            this.intrinsic.put(2, 1, 0.0);
+            this.intrinsic.put(2, 2, 1.0);
+
+            //Set the camera's distortion calibration matrix, printed and copied from the calibration program
+            this.distortion = new Mat(new Size(1,5), CvType.CV_64FC1);    
+            this.distortion.put(0, 0, 0.12904742891185897);
+            this.distortion.put(1, 0, -1.0455118434290487);
+            this.distortion.put(2, 0, -0.006297485062493555);
+            this.distortion.put(3, 0, 0.001478074246428523);
+            this.distortion.put(4, 0, 1.9880640079548846);
+
+            this.frameSize = new Size(160,120);
+            this.horizontalFOV = 57.154314;
+            this.verticalFOV = 42.8657355;
+            System.out.println("horizontal FOV is " + horizontalFOV + " degrees.");
+            System.out.println("vertical FOV is " + verticalFOV + " degrees.");
+
+            //Fill in physical position here:
+            this.height = 10.5;
+            this.verticalAngle = 0;
+        }
+    }
+
+    public void calibrate(String inputPath, double sideLengthInches, Size boardSize){
 
         //empty variables
         List<Mat> allProjectedCorners = new ArrayList<Mat>();
@@ -91,23 +151,23 @@ public class Calibration {
         Return value:
         a double related to the accuracy of the calibration - smaller is more accurate, under 1 is good: calibrationOutput
         */
-        double calibrationOutput = Calib3d.calibrateCamera(allRealCorners, allProjectedCorners, frameSize, intrinsic, distortion, rotation, translation);
+        double calibrationOutput = Calib3d.calibrateCamera(allRealCorners, allProjectedCorners, frameSize, this.intrinsic, this.distortion, rotation, translation);
         System.out.println("calibration output is " + calibrationOutput);
 
         //Print the intrinsic and distortion matrices so they can be defined as constants in other programs
         //Use the same double for loop method for going through the matrices as for setting up realCornersTemplate
         //Every data point in an OpenCV matrix is a double array, but in this case the arrays only contain one number
-        System.out.println("intrinsic matrix size is " + intrinsic.size());
-        for (int row = 0; row < intrinsic.rows(); row++){
-            for (int col = 0; col < intrinsic.cols(); col++){
-                System.out.println("Intrinsic matrix row " + row + ", column " + col + " is: " + intrinsic.get(row, col)[0]);
+        System.out.println("intrinsic matrix size is " + this.intrinsic.size());
+        for (int row = 0; row < this.intrinsic.rows(); row++){
+            for (int col = 0; col < this.intrinsic.cols(); col++){
+                System.out.println("Intrinsic matrix row " + row + ", column " + col + " is: " + this.intrinsic.get(row, col)[0]);
             }
         }
         
-        System.out.println("distortion matrix size is " + distortion.size());
-        for (int row = 0; row < distortion.rows(); row++){
-            for (int col = 0; col < distortion.cols(); col++){
-                System.out.println("Distortion matrix row " + row + ", column " + col + " is: " + distortion.get(row, col)[0]);
+        System.out.println("distortion matrix size is " + this.distortion.size());
+        for (int row = 0; row < this.distortion.rows(); row++){
+            for (int col = 0; col < this.distortion.cols(); col++){
+                System.out.println("Distortion matrix row " + row + ", column " + col + " is: " + this.distortion.get(row, col)[0]);
             }
         }
 
@@ -122,10 +182,22 @@ public class Calibration {
         }
     } 
 
+    public double estimateCellHeading(Point circleCenter){
+        return ((circleCenter.x - (this.frameSize.width / 2)) / this.frameSize.width) * this.horizontalFOV;
+    }
+
+    public double estimateCellDistance(Point circleCenter, double heading){
+        double cellAngle = -((circleCenter.y - (this.frameSize.height / 2)) / this.frameSize.height) * this.verticalFOV;
+        double longitudinalDistance = -(this.height - 3.5) * (1 / Math.cos(Math.toRadians(90 - (this.verticalAngle + cellAngle))));
+        return Math.abs(longitudinalDistance * (1/Math.cos(Math.toRadians(heading)))); 
+    }
+
     public static double rVecToHeading(Mat rVector) {
         Mat rMatrix = new Mat();
         Calib3d.Rodrigues(rVector, rMatrix);
         double sy = Math.sqrt(Math.pow(rMatrix.get(0, 0)[0], 2) + Math.pow(rMatrix.get(1, 0)[0], 2));
         return Math.toDegrees(Math.atan2(-rMatrix.get(2, 0)[0], sy));
     }
+
+
 }
