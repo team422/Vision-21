@@ -14,7 +14,8 @@ import java.io.File;
 import java.lang.Math;
 
 /**
-* A class that handles position estimation with different vision cameras
+* Handles properties of different cameras relevant to position estimation
+* Provides methods for position estimation
 */
 public class VisionCamera {
 
@@ -30,10 +31,10 @@ public class VisionCamera {
 
     //Camera's physical position on robot
     public double height; //distance from floor in inches
-    public double forwardOffset; //distance from center of robot in inches, positive forward, negative backward
-    public double horizontalOffset; //distance from center of robot in inches, positive right, negative left
-    public double verticalAngle; //angle from horizontal line to direction camera points in degrees
-    public double horizontalAngle; //angle from direction robot faces to direction camera points in degrees
+    public double robotCameraLongitudinal; //forward/backward distance from center of robot to camera in inches, positive forward, negative backward
+    public double robotCameraLateral; //side to side distance from center of robot to camera in inches, positive right, negative left
+    public double robotCameraPitch; //angle from horizontal line to direction camera points in degrees
+    public double robotCameraYaw; //angle from direction robot points to direction camera points in degrees
 
     //Names to handle sets of properties for one camera
     public static enum CameraName {
@@ -65,12 +66,13 @@ public class VisionCamera {
             this.frameSize = new Size(160,120);
             this.horizontalFOV = 57.154314;
             this.verticalFOV = 42.8657355;
-            System.out.println("horizontal FOV is " + horizontalFOV + " degrees.");
-            System.out.println("vertical FOV is " + verticalFOV + " degrees.");
 
-            //Fill in physical position here:
             this.height = 10.5;
-            this.verticalAngle = 0;
+            this.robotCameraLongitudinal = 0;
+            this.robotCameraLateral = 0;
+            this.robotCameraPitch = 0;
+            this.robotCameraYaw = 0;
+
         }
     }
 
@@ -182,17 +184,41 @@ public class VisionCamera {
         }
     } 
 
-    public double estimateCellHeading(Point circleCenter){
-        return ((circleCenter.x - (this.frameSize.width / 2)) / this.frameSize.width) * this.horizontalFOV;
+    /*
+    * calculates a powercell's position based on the powercell's position in the camera's FOV
+    * @param cellPoint the detected center coordinate of the powercell in the camera frame
+    * @return the distance and yaw of the center of the robot to the powercell.
+    */
+    public CellPosition estimateCellPosition(Point cellPoint){
+        //Calculate pitch from camera to powercell based on powercell's y coordinate and camera's vertical FOV
+        double cameraCellPitch = -((cellPoint.y - (this.frameSize.height / 2)) / this.frameSize.height) * this.verticalFOV;
+
+        //Calculate longitudinal distance from camera to powercell by using trig on the right triangle with known angle cameraCellPitch and known leg the height difference between camera and powercell
+        double cameraCellLongitudinal = -(this.height - 3.5) * (1 / Math.cos(Math.toRadians(90 - (this.robotCameraPitch + cameraCellPitch))));
+
+        //Calculate total longitudinal distance from robot center to powercell by adding distance from robot's center to camera plus distance from camera to powercell
+        double robotCellLongitudinal = this.robotCameraLongitudinal + cameraCellLongitudinal;
+
+        //Calculate yaw from camera to powercell using the same technique as for pitch
+        double cameraCellYaw = ((cellPoint.x - (this.frameSize.width / 2)) / this.frameSize.width) * this.horizontalFOV;
+
+        //Calculate lateral distance from camera to powercell using trig on the right triangle with known angle cameraCellYaw and known leg cameraCellLongitudinal
+        double cameraCellLateral = cameraCellLongitudinal * Math.tan(Math.toRadians(this.robotCameraYaw + cameraCellYaw));
+
+        //Calculate total lateral distance from robot center to powercell by adding distance from robot's center to camera plus distance from camera to powercell
+        double robotCellLateral = this.robotCameraLateral + cameraCellLateral;
+
+        //Calculate total distance from robot center to powercell by using the pythagorean theorem to find the hypotenuse of right triangle with known legs robotCellLongitudinal and robotCellLateral
+        double robotCellDistance = Math.sqrt(Math.pow(robotCellLongitudinal, 2) + Math.pow(robotCellLateral, 2));
+
+        //Calculate yaw of from robot center to powercell by using trig on the same right triangle as last step
+        double robotCellYaw = Math.toDegrees(Math.atan2(robotCellLateral, robotCellLongitudinal));
+        
+        CellPosition position = new CellPosition(robotCellDistance, robotCellYaw);
+        return position;
     }
 
-    public double estimateCellDistance(Point circleCenter, double heading){
-        double cellAngle = -((circleCenter.y - (this.frameSize.height / 2)) / this.frameSize.height) * this.verticalFOV;
-        double longitudinalDistance = -(this.height - 3.5) * (1 / Math.cos(Math.toRadians(90 - (this.verticalAngle + cellAngle))));
-        return Math.abs(longitudinalDistance * (1/Math.cos(Math.toRadians(heading)))); 
-    }
-
-    public static double rVecToHeading(Mat rVector) {
+    public static double rVecToAngle(Mat rVector) {
         Mat rMatrix = new Mat();
         Calib3d.Rodrigues(rVector, rMatrix);
         double sy = Math.sqrt(Math.pow(rMatrix.get(0, 0)[0], 2) + Math.pow(rMatrix.get(1, 0)[0], 2));

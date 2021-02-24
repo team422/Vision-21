@@ -431,7 +431,7 @@ public final class Main {
 
             goalLateralTranslationEntry.forceSetDouble(translation.get(0).get(0, 0)[0]);
             goalLongitudinalTranslationEntry.forceSetDouble(translation.get(0).get(2, 0)[0]);
-            goalRotationEntry.forceSetDouble(VisionCamera.rVecToHeading(rotation.get(0)));
+            goalRotationEntry.forceSetDouble(VisionCamera.rVecToAngle(rotation.get(0)));
 
           }
           goalDrawnVideo.putFrame(GoalPipeline.drawnExampleGoalImg);
@@ -468,7 +468,7 @@ public final class Main {
             */
             Imgproc.drawContours(CellPipeline.drawnFrame, CellPipeline.findContoursOutput, maxSizeIndex, new Scalar(255,255,0));
 
-            //Identify the center X coordinate of a rectangle drawn around the largest contour
+            //Draw a bounding circle around the largest contour
             MatOfPoint2f circleInput = new MatOfPoint2f();
             largestContour.convertTo(circleInput, CvType.CV_32FC2);
             Point boundCircCenter = new Point();
@@ -476,13 +476,12 @@ public final class Main {
             Imgproc.minEnclosingCircle(circleInput, boundCircCenter, boundCircRadius);
             Imgproc.circle(CellPipeline.drawnFrame, boundCircCenter, (int)boundCircRadius[0], new Scalar(255,255,255));
             
-            double heading = homeTestingCamera.estimateCellHeading(boundCircCenter);
-            System.out.println("heading is " + heading + " degrees");
-            cellRotationEntry.forceSetDouble(heading);
-
-            double distance = homeTestingCamera.estimateCellDistance(boundCircCenter, heading);
-            System.out.println("distance is " + distance + " inches");
-            cellDistanceEntry.forceSetDouble(distance);
+            //Use the bounding circle to estimate the angle and distance to the ball            
+            CellPosition cellPosition = homeTestingCamera.estimateCellPosition(boundCircCenter);
+            System.out.println("yaw is " + cellPosition.yaw + " degrees");
+            cellRotationEntry.forceSetDouble(cellPosition.yaw);
+            System.out.println("distance is " + cellPosition.distance + " inches");
+            cellDistanceEntry.forceSetDouble(cellPosition.distance);
 
            
             //CORRECTION THINGS
