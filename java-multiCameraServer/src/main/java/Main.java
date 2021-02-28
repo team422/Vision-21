@@ -104,11 +104,6 @@ public final class Main {
   public static List<CameraConfig> cameraConfigs = new ArrayList<>();
   public static List<SwitchedCameraConfig> switchedCameraConfigs = new ArrayList<>();
   public static List<VideoSource> cameras = new ArrayList<>();
-  
-  //booleans for running vision threads
-  public static boolean runGoalThread = false;
-  public static boolean runCellThread = false;
-
 
   private Main() {
   }
@@ -352,7 +347,7 @@ public final class Main {
       //Add a new camera stream for displaying the contour on
       CameraServer inst = CameraServer.getInstance();
       CvSource goalDrawnVideo = inst.putVideo("Goal Vision Stream", 160, 120); //160 and 120 are the frame's width and height found in the FRCVision web dashboard under Vision Settings
-      CvSource cellDrawnVideo = inst.putVideo("Powercell Vision Stream", 160, 120);
+      CvSource cellDrawnVideo = inst.putVideo("Powercell Vision Stream", 320, 240);
 
       VisionCamera homeTestingCamera = new VisionCamera(VisionCamera.CameraName.HomeTesting);
 
@@ -441,7 +436,7 @@ public final class Main {
 
       VisionThread cellVisionThread = new VisionThread(cameras.get(0),
       new CellPipeline(cellRunnerEntry), pipeline -> {
-        if (cellRunnerEntry.getBoolean(false)) {
+        if (cellRunnerEntry.getBoolean(true)) {
           System.out.println("CellPipeline found " + CellPipeline.findContoursOutput.size() + " contours.");
           
           if(CellPipeline.findContoursOutput.size()>0){
@@ -466,7 +461,7 @@ public final class Main {
             A thickness to draw in: 2
             A line format: 8, which is recommended, so go with that
             */
-            Imgproc.drawContours(CellPipeline.drawnFrame, CellPipeline.findContoursOutput, maxSizeIndex, new Scalar(255,255,0));
+            Imgproc.drawContours(CellPipeline.drawnFrame, CellPipeline.findContoursOutput, maxSizeIndex, new Scalar(255,255,255));
 
             //Draw a bounding circle around the largest contour
             MatOfPoint2f circleInput = new MatOfPoint2f();
@@ -474,7 +469,7 @@ public final class Main {
             Point boundCircCenter = new Point();
             float[] boundCircRadius = new float[1];
             Imgproc.minEnclosingCircle(circleInput, boundCircCenter, boundCircRadius);
-            Imgproc.circle(CellPipeline.drawnFrame, boundCircCenter, (int)boundCircRadius[0], new Scalar(255,255,255));
+            Imgproc.circle(CellPipeline.drawnFrame, boundCircCenter, (int)boundCircRadius[0], new Scalar(0,0,255));
             
             //Use the bounding circle to estimate the angle and distance to the ball            
             CellPosition cellPosition = homeTestingCamera.estimateCellPosition(boundCircCenter);
