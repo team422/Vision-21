@@ -42,25 +42,25 @@ public class CellPipeline implements VisionPipeline {
 
 		// Step HSL_Threshold0:
 		Mat hslThresholdInput = source0;
-		double[] hslThresholdHue = {21.468927900669936, 30.267375599254272};
-		double[] hslThresholdSaturation = {184.65955170926895, 255.0};
-		double[] hslThresholdLuminance = {0.0, 255.0};
+		double[] hslThresholdHue = {17.0, 30.267375599254272};
+		double[] hslThresholdSaturation = {190.0, 255.0};
+		double[] hslThresholdLuminance = {0.0, 200.0};
 		hslThreshold(hslThresholdInput, hslThresholdHue, hslThresholdSaturation, hslThresholdLuminance, hslThresholdOutput);
 
-		// Step CV_dilate0:
-		Mat cvDilate0Src = hslThresholdOutput;
-		Mat cvDilate0Kernel = new Mat();
-		Point cvDilate0Anchor = new Point(-1, -1);
-		double cvDilate0Iterations = 2.0;
-		int cvDilate0Bordertype = Core.BORDER_DEFAULT;
-		Scalar cvDilate0Bordervalue = new Scalar(-1);
-		cvDilate(cvDilate0Src, cvDilate0Kernel, cvDilate0Anchor, cvDilate0Iterations, cvDilate0Bordertype, cvDilate0Bordervalue, cvDilate0Output);
+		// // Step CV_dilate0:
+		// Mat cvDilate0Src = hslThresholdOutput;
+		// Mat cvDilate0Kernel = new Mat();
+		// Point cvDilate0Anchor = new Point(-1, -1);
+		// double cvDilate0Iterations = 2.0;
+		// int cvDilate0Bordertype = Core.BORDER_DEFAULT;
+		// Scalar cvDilate0Bordervalue = new Scalar(-1);
+		// cvDilate(cvDilate0Src, cvDilate0Kernel, cvDilate0Anchor, cvDilate0Iterations, cvDilate0Bordertype, cvDilate0Bordervalue, cvDilate0Output);
 
 		// Step CV_erode0:
-		Mat cvErodeSrc = cvDilate0Output;
+		Mat cvErodeSrc = hslThresholdOutput;
 		Mat cvErodeKernel = new Mat();
 		Point cvErodeAnchor = new Point(-1, -1);
-		double cvErodeIterations = 4.0;
+		double cvErodeIterations = 1.0;
 		int cvErodeBordertype = Core.BORDER_DEFAULT;
 		Scalar cvErodeBordervalue = new Scalar(-1);
 		cvErode(cvErodeSrc, cvErodeKernel, cvErodeAnchor, cvErodeIterations, cvErodeBordertype, cvErodeBordervalue, cvErodeOutput);
@@ -69,7 +69,7 @@ public class CellPipeline implements VisionPipeline {
 		Mat cvDilate1Src = cvErodeOutput;
 		Mat cvDilate1Kernel = new Mat();
 		Point cvDilate1Anchor = new Point(-1, -1);
-		double cvDilate1Iterations = 2.0;
+		double cvDilate1Iterations = 1.0;
 		int cvDilate1Bordertype = Core.BORDER_CONSTANT;
 		Scalar cvDilate1Bordervalue = new Scalar(-1);
 		cvDilate(cvDilate1Src, cvDilate1Kernel, cvDilate1Anchor, cvDilate1Iterations, cvDilate1Bordertype, cvDilate1Bordervalue, cvDilate1Output);

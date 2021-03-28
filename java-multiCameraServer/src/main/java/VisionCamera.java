@@ -6,9 +6,11 @@ import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Point;
 
-import org.opencv.core.Size;
+import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.calib3d.*;
+import org.opencv.imgproc.*;
+
 import java.io.File;
 
 import java.lang.Math;
@@ -66,11 +68,10 @@ public class VisionCamera {
             this.horizontalFOV = 57.154314;
             this.verticalFOV = 42.8657355;
 
-            this.height = 10.5;
-            this.robotCameraLongitudinal = 15.5;
+            this.height = 12.975;
+            this.robotCameraLongitudinal = 23.75;
             this.robotCameraLateral = 0;
-            this.robotCameraPitch = 0;
-            this.robotCameraYaw = 0;
+            this.robotCameraPitch = -14;
 
         }
     }
@@ -189,21 +190,23 @@ public class VisionCamera {
     * @return the distance and yaw of the center of the robot to the powercell.
     */
     public CellPosition estimateCellPosition(Point cellPoint){
+        Imgproc.circle(CellPipeline.drawnFrame, cellPoint, 3, new Scalar(0,255,0));
+
         //Calculate pitch from camera to powercell based on powercell's y coordinate and camera's vertical FOV
         double cameraCellPitch = -((cellPoint.y - (this.frameSize.height / 2)) / this.frameSize.height) * this.verticalFOV;
         System.out.println("camera to cell pitch is " + cameraCellPitch + " degrees");
         //Calculate total pitch from robot center to powercell by adding pitch from robot's center to camera plus pitch from camera to powercell
         double robotCellPitch = this.robotCameraPitch + cameraCellPitch;
-
+        System.out.println("robot to cell pitch is " + robotCellPitch + " degrees");
         //Calculate longitudinal distance from camera to powercell by using trig on the right triangle with known angle cameraCellPitch and known leg the height difference between camera and powercell
-        double cameraCellLongitudinal = (3.5 - this.height) * (1 / Math.tan(Math.toRadians(robotCellPitch)));
+        double cameraCellLongitudinal = (7 - this.height) * (1 / Math.tan(Math.toRadians(robotCellPitch)));
         System.out.println("camera to cell longitudinal distance is " + cameraCellLongitudinal + " inches");
         //Calculate total longitudinal distance from robot center to powercell by adding distance from robot's center to camera plus distance from camera to powercell
         double robotCellLongitudinal = this.robotCameraLongitudinal + cameraCellLongitudinal;
 
         //Calculate yaw from camera to powercell using the same technique as for pitch
         double cameraCellYaw = ((cellPoint.x - (this.frameSize.width / 2)) / this.frameSize.width) * this.horizontalFOV;
-
+        System.out.println("camera to cell yaw is " + cameraCellYaw + " degrees");
         //Calculate lateral distance from camera to powercell using trig on the right triangle with known angle cameraCellYaw and known leg cameraCellLongitudinal
         double cameraCellLateral = cameraCellLongitudinal * Math.tan(Math.toRadians(cameraCellYaw));
         System.out.println("camera to cell lateral distance is " + cameraCellLateral + " inches");
@@ -215,7 +218,8 @@ public class VisionCamera {
 
         //Calculate yaw of from robot center to powercell by using trig on the same right triangle as last step
         double robotCellYaw = Math.toDegrees(Math.atan2(robotCellLateral, robotCellLongitudinal));
-        
+        System.out.println("robot to cell yaw is " + robotCellYaw + " degrees");
+
         CellPosition position = new CellPosition(robotCellDistance, robotCellYaw);
         return position;
     }
@@ -227,5 +231,8 @@ public class VisionCamera {
         return Math.toDegrees(Math.atan2(-rMatrix.get(2, 0)[0], sy));
     }
 
-
+    //red A: around 0 degrees
+    //blue A: around 22 degrees
+    //red B: around -20 degrees
+    //blue B: around 13 degrees sometimes around -7 degrees
 }

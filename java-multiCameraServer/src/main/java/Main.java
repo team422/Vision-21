@@ -472,7 +472,7 @@ public final class Main {
             Imgproc.circle(CellPipeline.drawnFrame, boundCircCenter, (int)boundCircRadius[0], new Scalar(0,0,255));
             
             //Use the bounding circle to estimate the angle and distance to the ball            
-            CellPosition cellPosition = homeTestingCamera.estimateCellPosition(boundCircCenter);
+            CellPosition cellPosition = homeTestingCamera.estimateCellPosition(new Point(boundCircCenter.x, boundCircCenter.y - boundCircRadius[0]));
             System.out.println("yaw is " + cellPosition.yaw + " degrees");
             cellRotationEntry.forceSetDouble(cellPosition.yaw);
             System.out.println("distance is " + cellPosition.distance + " inches");
