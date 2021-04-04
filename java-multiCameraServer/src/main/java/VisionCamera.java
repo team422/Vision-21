@@ -68,10 +68,10 @@ public class VisionCamera {
             this.horizontalFOV = 57.154314;
             this.verticalFOV = 42.8657355;
 
-            this.height = 12.975;
-            this.robotCameraLongitudinal = 23.75;
+            this.height = 13.5;
+            this.robotCameraLongitudinal = 24;
             this.robotCameraLateral = 0;
-            this.robotCameraPitch = -14;
+            this.robotCameraPitch = -15;
 
         }
     }
